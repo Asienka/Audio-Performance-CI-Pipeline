@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<objects serializationModel="Studio.02.03.00">
+	<object class="ParameterPreset" id="{58de02c2-0e88-4da0-872e-853f4c3aeae7}">
+		<property name="name">
+			<value>LPF</value>
+		</property>
+		<relationship name="folder">
+			<destination>{e5e01860-686a-41d7-aa3d-99a114f9ad28}</destination>
+		</relationship>
+		<relationship name="parameter">
+			<destination>{09446f71-d2bf-4e25-ac1d-98c55e89c01b}</destination>
+		</relationship>
+	</object>
+	<object class="GameParameter" id="{09446f71-d2bf-4e25-ac1d-98c55e89c01b}">
+		<property name="initialValue">
+			<value>0</value>
+		</property>
+	</object>
+</objects>
