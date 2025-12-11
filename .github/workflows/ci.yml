@@ -16,6 +16,7 @@ jobs:
     - name: Unity Builder
       uses: game-ci/unity-builder@v4.8.1
       with:
+        projectPath: AudioProfiling
         targetPlatform: StandaloneWindows64
         unityVersion: auto
 
