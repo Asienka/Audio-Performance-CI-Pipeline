@@ -1,0 +1,84 @@
+name: Unity Audio Performance Monitor
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    name: Build Unity Project
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Unity Builder
+      uses: game-ci/unity-builder@v4.8.1
+      with:
+        targetPlatform: StandaloneWindows64
+        unityVersion: auto
+
+    - name: Upload build
+      uses: actions/upload-artifact@v3
+      with:
+        name: Build-Executable
+        path: build/StandaloneWindows64/
+
+  profile:
+    name: Run Build and Generate Profiler Logs
+    needs: build
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Download build from artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: Build-Executable
+        path: Build/
+
+    - name: Run executable to collect profiler data
+      run: |
+        echo "Running game build..."
+        ./Build/Player.exe
+        echo "Execution finished."
+
+    - name: Upload profiler logs
+      uses: actions/upload-artifact@v3
+      with:
+        name: Profiler-Logs
+        path: profiler_output.json
+
+  analyze:
+    name: Analyze Audio Performance
+    needs: profile
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Download profiler logs
+      uses: actions/download-artifact@v3
+      with:
+        name: Profiler-Logs
+        path: .
+
+    - name: Install Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Run performance analysis
+      run: |
+        pip install -r tools/requirements.txt || true
+        python tools/parse_profiler.py
+
+    - name: Upload report
+      uses: actions/upload-artifact@v3
+      with:
+        name: Analysis-Report
+        path: report.json
