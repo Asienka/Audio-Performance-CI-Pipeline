@@ -27,59 +27,46 @@ public class LogAudioMetrics : MonoBehaviour
     void Start()
     {
         UnityEngine.Debug.Log("[Perf] Audio metrics logging started.");
-        // For testing: save immediately with dummy data
-        samples.Add(new AudioFrameData
-        {
-            time = 0f,
-            unityFrameMs = 0f,
-            fmodCpuDsp = 0f,
-            fmodCpuStream = 0f,
-            totalFmodCpu = 0f,
-            voices = 0
-        });
-        SaveJson();
-        UnityEngine.Debug.Log("[Perf] Test save done. Quitting.");
-        Application.Quit();
     }
 
-    // void Update()
-    // {
-    //     timer += Time.deltaTime;
+    void Update()
+    {
+        timer += Time.deltaTime;
 
-    //     // Unity frame time (ms)
-    //     float frameTimeMs = Time.deltaTime * 1000f;
+        // Unity frame time (ms)
+        float frameTimeMs = Time.deltaTime * 1000f;
 
-    //     // Query FMOD CPU usage. Use out-var to match whatever signature
-    //     // the installed FMOD API provides, then read the numeric fields
-    //     // (`dsp` and `stream`) via reflection so this code compiles
-    //     // regardless of the exact CPU_USAGE type (FMOD or FMOD.Studio).
-    //     RuntimeManager.StudioSystem.getCPUUsage(out var core, out var studio);
+        // Query FMOD CPU usage. Use out-var to match whatever signature
+        // the installed FMOD API provides, then read the numeric fields
+        // (`dsp` and `stream`) via reflection so this code compiles
+        // regardless of the exact CPU_USAGE type (FMOD or FMOD.Studio).
+        RuntimeManager.StudioSystem.getCPUUsage(out var core, out var studio);
 
-    //     float dspCpu = GetFloatMember(studio, "dsp");
-    //     float streamCpu = GetFloatMember(studio, "stream");
+        float dspCpu = GetFloatMember(studio, "dsp");
+        float streamCpu = GetFloatMember(studio, "stream");
 
-    //     // FMOD voice count
-    //     RuntimeManager.StudioSystem.getBus("bus:/", out FMOD.Studio.Bus masterBus);
-    //     masterBus.getChannelGroup(out FMOD.ChannelGroup group);
-    //     group.getNumChannels(out int voiceCount);
+        // FMOD voice count
+        RuntimeManager.StudioSystem.getBus("bus:/", out FMOD.Studio.Bus masterBus);
+        masterBus.getChannelGroup(out FMOD.ChannelGroup group);
+        group.getNumChannels(out int voiceCount);
 
-    //     samples.Add(new AudioFrameData
-    //     {
-    //         time = Time.time,
-    //         unityFrameMs = frameTimeMs,
-    //         fmodCpuDsp = dspCpu,
-    //         fmodCpuStream = streamCpu,
-    //         totalFmodCpu = dspCpu + streamCpu,
-    //         voices = voiceCount
-    //     });
+        samples.Add(new AudioFrameData
+        {
+            time = Time.time,
+            unityFrameMs = frameTimeMs,
+            fmodCpuDsp = dspCpu,
+            fmodCpuStream = streamCpu,
+            totalFmodCpu = dspCpu + streamCpu,
+            voices = voiceCount
+        });
 
-    //     if (timer >= duration)
-    //     {
-    //         SaveJson();
-    //         UnityEngine.Debug.Log("[Perf] Metrics saved. Quitting.");
-    //         Application.Quit();
-    //     }
-    // }
+        if (timer >= duration)
+        {
+            SaveJson();
+            UnityEngine.Debug.Log("[Perf] Metrics saved. Quitting.");
+            Application.Quit();
+        }
+    }
 
     private void SaveJson()
     {
