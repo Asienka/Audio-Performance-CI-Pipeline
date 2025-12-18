@@ -56,7 +56,7 @@ jobs:
     - name: Run executable to collect profiler data
       run: |
         echo "Running game build..."
-        ./Build/AudioProfiling.exe
+        .\Build\AudioProfiler.exe
         echo "Execution finished."
 
     - name: Upload profiler logs
