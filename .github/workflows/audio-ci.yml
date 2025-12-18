@@ -5,6 +5,10 @@ on:
   branches:
     - main
     
+ push:
+  branches:
+    - main
+    
 jobs:
   build:
     name: Build Unity Project
@@ -81,7 +85,7 @@ jobs:
     - name: Run performance analysis
       run: |
         pip install -r tools/requirements.txt || true
-        python tools/parse_profiler.py
+        python tools/parse_audioprofiler.py
 
     - name: Upload report
       uses: actions/upload-artifact@v5.0.0
