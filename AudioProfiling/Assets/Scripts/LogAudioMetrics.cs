@@ -36,19 +36,31 @@ public class LogAudioMetrics : MonoBehaviour
         // Unity frame time (ms)
         float frameTimeMs = Time.deltaTime * 1000f;
 
-        // Query FMOD CPU usage. Use out-var to match whatever signature
-        // the installed FMOD API provides, then read the numeric fields
-        // (`dsp` and `stream`) via reflection so this code compiles
-        // regardless of the exact CPU_USAGE type (FMOD or FMOD.Studio).
-        RuntimeManager.StudioSystem.getCPUUsage(out var core, out var studio);
+        float dspCpu = 0f;
+        float streamCpu = 0f;
+        int voiceCount = 0;
 
-        float dspCpu = GetFloatMember(studio, "dsp");
-        float streamCpu = GetFloatMember(studio, "stream");
+        try
+        {
+            // Query FMOD CPU usage. Use out-var to match whatever signature
+            // the installed FMOD API provides, then read the numeric fields
+            // (`dsp` and `stream`) via reflection so this code compiles
+            // regardless of the exact CPU_USAGE type (FMOD or FMOD.Studio).
+            RuntimeManager.StudioSystem.getCPUUsage(out var core, out var studio);
 
-        // FMOD voice count
-        RuntimeManager.StudioSystem.getBus("bus:/", out FMOD.Studio.Bus masterBus);
-        masterBus.getChannelGroup(out FMOD.ChannelGroup group);
-        group.getNumChannels(out int voiceCount);
+            dspCpu = GetFloatMember(studio, "dsp");
+            streamCpu = GetFloatMember(studio, "stream");
+
+            // FMOD voice count
+            RuntimeManager.StudioSystem.getBus("bus:/", out FMOD.Studio.Bus masterBus);
+            masterBus.getChannelGroup(out FMOD.ChannelGroup group);
+            group.getNumChannels(out voiceCount);
+        }
+        catch (System.Exception e)
+        {
+            UnityEngine.Debug.LogWarning("[Perf] FMOD query failed: " + e.Message);
+            // Continue with zeros
+        }
 
         samples.Add(new AudioFrameData
         {
