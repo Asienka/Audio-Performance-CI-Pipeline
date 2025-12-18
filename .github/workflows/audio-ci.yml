@@ -63,7 +63,7 @@ jobs:
       uses: actions/upload-artifact@v5.0.0
       with:
         name: Profiler-Logs
-        path: profiler_output.json
+        path: Build/profiler_output.json
 
   analyze:
     name: Analyze Audio Performance
