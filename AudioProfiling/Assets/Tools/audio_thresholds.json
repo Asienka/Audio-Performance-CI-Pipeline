@@ -1,0 +1,25 @@
+{
+  "fmod": {
+    "cpu": {
+      "dsp": {
+        "max": 15.0
+      },
+      "stream": {
+        "avg": 10.0
+      },
+      "total": {
+        "max": 20.0
+      }
+    },
+    "voices": {
+      "avg": 128,
+      "max": 256
+    }
+  },
+  "unity": {
+    "frame_ms": {
+      "avg": 25.0,
+      "max": 40.0
+    }
+  }
+}
