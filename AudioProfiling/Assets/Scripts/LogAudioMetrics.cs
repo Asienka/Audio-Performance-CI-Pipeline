@@ -70,7 +70,7 @@ public class LogAudioMetrics : MonoBehaviour
 
     private void SaveJson()
     {
-        string path = Path.Combine(Application.dataPath, "..", outputFile);
+        string path = Path.Combine(Directory.GetCurrentDirectory(), outputFile);
 
         var wrapper = new
         {
