@@ -50,10 +50,13 @@ jobs:
         name: Build-Executable
         path: Build/
 
+    - name: List build directory
+      run: dir Build/
+
     - name: Run executable to collect profiler data
       run: |
         echo "Running game build..."
-        .\Build\AudioProfiling.exe
+        ./Build/AudioProfiling.exe
         echo "Execution finished."
 
     - name: Upload profiler logs
