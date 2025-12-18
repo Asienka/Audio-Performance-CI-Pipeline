@@ -19,7 +19,10 @@ jobs:
       with:
         projectPath: AudioProfiling
         targetPlatform: StandaloneWindows64
-        unityVersion: auto
+        unityVersion: auto 
+        license: 'Personal'
+        username: ${{ secrets.UNITY_USERNAME }}
+        password: ${{ secrets.UNITY_PASSWORD }}
 
     - name: Upload build
       uses: actions/upload-artifact@v5.0.0
@@ -45,7 +48,7 @@ jobs:
     - name: Run executable to collect profiler data
       run: |
         echo "Running game build..."
-        ./Build/Player.exe
+        ./Build/AudioProfiling.exe
         echo "Execution finished."
 
     - name: Upload profiler logs
