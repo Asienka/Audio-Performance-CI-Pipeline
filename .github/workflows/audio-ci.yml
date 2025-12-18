@@ -59,9 +59,11 @@ jobs:
         .\Build\StandaloneWindows64.exe
         echo "Execution finished."
 
-    - name: Check for profiler output
+    - name: Locate profiler_output.json
+      shell: powershell
       run: |
-        if (Test-Path profiler_output.json) { Write-Host "Profiler output file exists." } else { Write-Host "Profiler output file not found." }
+        Write-Host "Searching for profiler_output.json..."
+        Get-ChildItem -Recurse -Filter profiler_output.json | Select FullName
 
     - name: Upload profiler logs
       uses: actions/upload-artifact@v5.0.0
