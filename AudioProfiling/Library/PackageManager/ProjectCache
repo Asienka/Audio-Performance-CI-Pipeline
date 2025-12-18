@@ -622,6 +622,7 @@ m_ResolvedPackages:
     - 1.8.7
     - 1.8.8
     - 1.8.9
+    - 1.8.10
     compatible:
     - 1.8.2
     - 1.8.3
@@ -631,7 +632,8 @@ m_ResolvedPackages:
     - 1.8.7
     - 1.8.8
     - 1.8.9
-    recommended: 1.8.9
+    - 1.8.10
+    recommended: 1.8.10
     deprecated: []
   dependencies:
   - name: com.unity.modules.audio
@@ -3100,11 +3102,13 @@ m_ResolvedPackages:
     - 2.0.22
     - 2.0.23
     - 2.0.25
+    - 2.0.26
     compatible:
     - 2.0.22
     - 2.0.23
     - 2.0.25
-    recommended: 2.0.25
+    - 2.0.26
+    recommended: 2.0.26
     deprecated: []
   dependencies:
   - name: com.unity.test-framework
