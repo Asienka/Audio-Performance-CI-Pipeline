@@ -15,14 +15,15 @@ jobs:
       uses: actions/checkout@v6.0.1
 
     - name: Unity Builder
-      uses: game-ci/unity-builder@v4.8.1
+      uses: game-ci/unity-builder@v4
+      env:
+        UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+        UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
       with:
         projectPath: AudioProfiling
         targetPlatform: StandaloneWindows64
-        unityVersion: auto 
-        license: 'Personal'
-        username: ${{ secrets.UNITY_USERNAME }}
-        password: ${{ secrets.UNITY_PASSWORD }}
+        unityVersion: 2023.1.22f1
 
     - name: Upload build
       uses: actions/upload-artifact@v5.0.0
