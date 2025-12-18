@@ -12,28 +12,28 @@ on:
 jobs:
   build:
     name: Build Unity Project
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v6.0.1
 
-      - name: Unity Builder
-        uses: game-ci/unity-builder@v4
-        env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-        with:
-          projectPath: AudioProfiling
-          unityVersion: 2023.1.22f1
-          targetPlatform: StandaloneWindows64
+    - name: Unity Builder
+      uses: game-ci/unity-builder@v4
+      env:
+        UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+        UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+      with:
+        projectPath: AudioProfiling
+        targetPlatform: StandaloneWindows64
+        unityVersion: 2023.1.22f1
 
-      - name: Upload build
-        uses: actions/upload-artifact@v4
-        with:
-          name: Build-Executable
-          path: build/StandaloneWindows64/
+    - name: Upload build
+      uses: actions/upload-artifact@v5.0.0
+      with:
+        name: Build-Executable
+        path: build/StandaloneWindows64/
 
   profile:
     name: Run Build and Generate Profiler Logs
@@ -41,35 +41,33 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v6.0.1
 
-      - name: Download build from artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: Build-Executable
-          path: Build/
+    - name: Download build from artifacts
+      uses: actions/download-artifact@v6.0.0
+      with:
+        name: Build-Executable
+        path: Build/
 
-      - name: Run executable to collect profiler data
-        shell: powershell
-        run: |
-          Write-Host "Running game build..."
-          .\Build\StandaloneWindows64\AudioProfiling.exe
-          Write-Host "Execution finished."
+    - name: List build directory
+      run: dir Build/
 
-      # 🔍 Debug: znajdź gdzie faktycznie zapisuje się JSON
-      - name: Locate profiler_output.json
-        shell: powershell
-        run: |
-          Write-Host "Searching for profiler_output.json..."
-          Get-ChildItem -Recurse -Filter profiler_output.json | Select FullName
+    - name: Run executable to collect profiler data
+      run: |
+        echo "Running game build..."
+        .\Build\StandaloneWindows64.exe
+        echo "Execution finished."
 
-      - name: Upload profiler logs
-        uses: actions/upload-artifact@v4
-        with:
-          name: Profiler-Logs
-          path: |
-            **/profiler_output.json
+    - name: Check for profiler output
+      run: |
+        if (Test-Path profiler_output.json) { Write-Host "Profiler output file exists." } else { Write-Host "Profiler output file not found." }
+
+    - name: Upload profiler logs
+      uses: actions/upload-artifact@v5.0.0
+      with:
+        name: Profiler-Logs
+        path: profiler_output.json
 
   analyze:
     name: Analyze Audio Performance
@@ -77,20 +75,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v6.0.1
 
-      - name: Download profiler logs
-        uses: actions/download-artifact@v4
-        with:
-          name: Profiler-Logs
-          path: .
+    - name: Download profiler logs
+      uses: actions/download-artifact@v6.0.0
+      with:
+        name: Profiler-Logs
+        path: .
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+    - name: Install Python
+      uses: actions/setup-python@v6.1.0
+      with:
+        python-version: '3.11'
 
-      - name: Run performance analysis
-        run: |
-          python tools/parse_audioprofiler.py profiler_output.json
+    - name: Run performance analysis
+      run: |
+        pip install -r tools/requirements.txt || true
+        python tools/parse_audioprofiler.py
+
+    - name: Upload report
+      uses: actions/upload-artifact@v5.0.0
+      with:
+        name: Analysis-Report
+        path: report.json
