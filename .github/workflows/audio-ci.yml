@@ -55,34 +55,32 @@ jobs:
     - name: List build directory
       run: dir Build/
 
-    - name: Run executable (headless)
+    - name: Run Unity build (headless)
       shell: powershell
       run: |
         Write-Host "Running Unity build (headless)..."
 
-        $exePath = "./Build/StandaloneWindows64/AudioProfiling.exe"
-        $arguments = "-batchmode -nographics -logFile unity.log"
+        $exe = Get-ChildItem Build -Filter AudioProfiling.exe
 
-        $process = Start-Process `
-          -FilePath $exePath `
-          -ArgumentList $arguments `
-          -PassThru
-
-        # ⏱️ Timeout (e.g., 120 seconds)
-        $timeoutSeconds = 120
-        if (-not $process.WaitForExit($timeoutSeconds * 1000)) {
-            Write-Error "Unity build timed out after $timeoutSeconds seconds."
-            $process.Kill()
+        if (-not $exe) {
+            Write-Error "AudioProfiling.exe not found in Build/"
             exit 1
         }
 
-        # ❌ Exit code check
+        Write-Host "Found executable: $($exe.FullName)"
+
+        $process = Start-Process `
+          -FilePath $exe.FullName `
+          -ArgumentList "-batchmode -nographics -logFile unity.log" `
+          -PassThru `
+          -Wait
+
         if ($process.ExitCode -ne 0) {
-            Write-Error "Unity exited with code $($process.ExitCode)."
+            Write-Error "Unity exited with code $($process.ExitCode)"
             exit $process.ExitCode
         }
 
-        Write-Host "Unity build finished successfully."
+        Write-Host "Unity finished successfully."
 
     - name: Locate profiler output
       shell: powershell
@@ -100,7 +98,7 @@ jobs:
       with:
         name: Profiler-Logs
         path: |
-          **/profiler_output.json
+          Build/profiler_output.json
           unity.log
 
   analyze:
