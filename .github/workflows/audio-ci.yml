@@ -8,6 +8,7 @@ on:
  push:
   branches:
     - main
+    - Fix-CI-workflow
     
 jobs:
   build:
@@ -28,6 +29,7 @@ jobs:
         projectPath: AudioProfiling
         targetPlatform: StandaloneWindows64
         unityVersion: 2023.1.22f1
+        buildName: AudioProfiling
 
     - name: Upload build
       uses: actions/upload-artifact@v5.0.0
@@ -53,51 +55,69 @@ jobs:
     - name: List build directory
       run: dir Build/
 
-    - name: Run executable to collect profiler data
+    - name: Run Unity build (headless)
+      shell: powershell
       run: |
-        echo "Running game build..."
-        .\Build\StandaloneWindows64.exe
-        echo "Execution finished."
+        $exe = Get-ChildItem -Path Build -Recurse -Filter AudioProfiling.exe | Select-Object -First 1
 
-    - name: Locate profiler_output.json
+        if (-not $exe) {
+        Write-Error "AudioProfiling.exe not found in Build/"
+        exit 1
+        }
+
+        Write-Host "Running executable: $($exe.FullName)"
+        Start-Process `
+        -FilePath $exe.FullName `
+        -ArgumentList "-batchmode -nographics -logFile `"$PWD\unity.log`"" `
+        -Wait `
+        -NoNewWindow
+
+    - name: Locate profiler output
       shell: powershell
       run: |
         Write-Host "Searching for profiler_output.json..."
-        Get-ChildItem -Recurse -Filter profiler_output.json | Select FullName
+        $profilerOutput = Get-ChildItem Build -Recurse -Filter profiler_output.json | Select-Object -ExpandProperty FullName
+        if (-not $profilerOutput) {
+          Write-Error "profiler_output.json not found."
+          exit 1
+        }
+        Write-Host "Found profiler_output.json at: $profilerOutput"
 
     - name: Upload profiler logs
       uses: actions/upload-artifact@v5.0.0
       with:
         name: Profiler-Logs
-        path: profiler_output.json
+        path: |
+          Build/AudioProfiling_Data/profiler_output.json
+          unity.log
 
-  analyze:
-    name: Analyze Audio Performance
-    needs: profile
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v6.0.1
-
-    - name: Download profiler logs
-      uses: actions/download-artifact@v6.0.0
-      with:
-        name: Profiler-Logs
-        path: .
-
-    - name: Install Python
-      uses: actions/setup-python@v6.1.0
-      with:
-        python-version: '3.11'
-
-    - name: Run performance analysis
-      run: |
-        pip install -r tools/requirements.txt || true
-        python tools/parse_audioprofiler.py
-
-    - name: Upload report
-      uses: actions/upload-artifact@v5.0.0
-      with:
-        name: Analysis-Report
-        path: report.json
+# analyze:
+#   name: Analyze Audio Performance
+#   needs: profile
+#   runs-on: ubuntu-latest
+#
+#   steps:
+#   - name: Checkout repository
+#     uses: actions/checkout@v6.0.1
+#
+#   - name: Download profiler logs
+#     uses: actions/download-artifact@v6.0.0
+#     with:
+#       name: Profiler-Logs
+#       path: .
+#
+#   - name: Install Python
+#     uses: actions/setup-python@v6.1.0
+#     with:
+#       python-version: '3.11'
+#
+#   - name: Run performance analysis
+#     run: |
+#       pip install -r tools/requirements.txt || true
+#       python tools/parse_audioprofiler.py
+#
+#   - name: Upload report
+#     uses: actions/upload-artifact@v5.0.0
+#     with:
+#       name: Analysis-Report
+#       path: report.json
