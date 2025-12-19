@@ -91,33 +91,39 @@ jobs:
           Build/AudioProfiling_Data/profiler_output.json
           unity.log
 
-# analyze:
-#   name: Analyze Audio Performance
-#   needs: profile
-#   runs-on: ubuntu-latest
-#
-#   steps:
-#   - name: Checkout repository
-#     uses: actions/checkout@v6.0.1
-#
-#   - name: Download profiler logs
-#     uses: actions/download-artifact@v6.0.0
-#     with:
-#       name: Profiler-Logs
-#       path: .
-#
-#   - name: Install Python
-#     uses: actions/setup-python@v6.1.0
-#     with:
-#       python-version: '3.11'
-#
-#   - name: Run performance analysis
-#     run: |
-#       pip install -r tools/requirements.txt || true
-#       python tools/parse_audioprofiler.py
-#
-#   - name: Upload report
-#     uses: actions/upload-artifact@v5.0.0
-#     with:
-#       name: Analysis-Report
-#       path: report.json
+  analyze:
+   name: Analyze Audio Performance
+   needs: profile
+   runs-on: ubuntu-latest
+
+   steps:
+   - name: Checkout repository
+     uses: actions/checkout@v6.0.1
+
+   - name: Download profiler logs
+     uses: actions/download-artifact@v6.0.0
+     with:
+       name: Profiler-Logs
+       path: .
+
+   - name: Install Python
+     uses: actions/setup-python@v6.1.0
+     with:
+       python-version: '3.11'
+
+   - name: Run performance analysis
+     run: |
+       set -e
+       if [ -f AudioProfiling/Assets/Tools/parse_audioprofiler.py ]; then
+        echo "Installing Python requirements..."
+        pip install -r AudioProfiling/Assets/Tools/requirements.txt || true
+        echo "Running audio profiler parser..."
+        python AudioProfiling/Assets/Tools/parse_audioprofiler.py --input ProfilerLogs/profiler_output.json --output report.json
+       else
+       echo "No analysis tools found, skipping analys
+
+   - name: Upload report
+     uses: actions/upload-artifact@v5.0.0
+     with:
+       name: Analysis-Report
+       path: report.json
