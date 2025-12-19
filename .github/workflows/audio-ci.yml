@@ -112,16 +112,15 @@ jobs:
        python-version: '3.11'
 
    - name: Run performance analysis
+     shell: bash
      run: |
        set -e
        if [ -f AudioProfiling/Assets/Tools/parse_audioprofiler.py ]; then
-        echo "Installing Python requirements..."
-        pip install -r AudioProfiling/Assets/Tools/requirements.txt || true
         echo "Running audio profiler parser..."
         python AudioProfiling/Assets/Tools/parse_audioprofiler.py --input Build/AudioProfiling_Data/profiler_output.json --output report.json
        else
-       echo "No analysis tools found, skipping analysis"
-        fi
+        echo "No analysis tools found, skipping analysis"
+       fi
 
    - name: Upload report
      uses: actions/upload-artifact@v5.0.0
