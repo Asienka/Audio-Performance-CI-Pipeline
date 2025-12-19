@@ -2,12 +2,13 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using FMODUnity;
-using FMOD.Studio; // for Bus
+using FMOD;                // for CPU_USAGE and ChannelGroup
+using FMOD.Studio;         // for Bus
 
 public class LogAudioMetrics : MonoBehaviour
 {
     [Header("Profiling Settings")]
-    public float duration = 10f;
+    public float duration = 1f;
     public string outputFile = "profiler_output.json";
 
     private float timer = 0f;
