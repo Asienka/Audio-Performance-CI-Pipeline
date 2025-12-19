@@ -8,11 +8,12 @@ on:
  push:
   branches:
     - main
+    - Fix-CI-workflow
     
 jobs:
   build:
     name: Build Unity Project
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
     - name: Checkout repository
@@ -28,6 +29,7 @@ jobs:
         projectPath: AudioProfiling
         targetPlatform: StandaloneWindows64
         unityVersion: 2023.1.22f1
+        buildName: AudioProfiling
 
     - name: Upload build
       uses: actions/upload-artifact@v5.0.0
@@ -53,23 +55,53 @@ jobs:
     - name: List build directory
       run: dir Build/
 
-    - name: Run executable to collect profiler data
+    - name: Run executable (headless)
+      shell: powershell
       run: |
-        echo "Running game build..."
-        .\Build\StandaloneWindows64.exe
-        echo "Execution finished."
+        Write-Host "Running Unity build (headless)..."
 
-    - name: Locate profiler_output.json
+        $exePath = "./Build/StandaloneWindows64/AudioProfiling.exe"
+        $arguments = "-batchmode -nographics -logFile unity.log"
+
+        $process = Start-Process `
+          -FilePath $exePath `
+          -ArgumentList $arguments `
+          -PassThru
+
+        # ⏱️ Timeout (e.g., 120 seconds)
+        $timeoutSeconds = 120
+        if (-not $process.WaitForExit($timeoutSeconds * 1000)) {
+            Write-Error "Unity build timed out after $timeoutSeconds seconds."
+            $process.Kill()
+            exit 1
+        }
+
+        # ❌ Exit code check
+        if ($process.ExitCode -ne 0) {
+            Write-Error "Unity exited with code $($process.ExitCode)."
+            exit $process.ExitCode
+        }
+
+        Write-Host "Unity build finished successfully."
+
+    - name: Locate profiler output
       shell: powershell
       run: |
         Write-Host "Searching for profiler_output.json..."
-        Get-ChildItem -Recurse -Filter profiler_output.json | Select FullName
+        $profilerOutput = Get-ChildItem -Recurse $env:LOCALAPPDATA -Filter profiler_output.json | Select-Object -ExpandProperty FullName
+        if (-not $profilerOutput) {
+          Write-Error "profiler_output.json not found."
+          exit 1
+        }
+        Write-Host "Found profiler_output.json at: $profilerOutput"
 
     - name: Upload profiler logs
       uses: actions/upload-artifact@v5.0.0
       with:
         name: Profiler-Logs
-        path: profiler_output.json
+        path: |
+          **/profiler_output.json
+          unity.log
 
   analyze:
     name: Analyze Audio Performance

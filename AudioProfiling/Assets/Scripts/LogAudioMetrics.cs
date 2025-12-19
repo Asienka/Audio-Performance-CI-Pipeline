@@ -2,8 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using FMODUnity;
-using FMOD;                // for CPU_USAGE and ChannelGroup
-using FMOD.Studio;         // for Bus
+using FMOD.Studio; // for Bus
 
 public class LogAudioMetrics : MonoBehaviour
 {
@@ -12,9 +11,11 @@ public class LogAudioMetrics : MonoBehaviour
     public string outputFile = "profiler_output.json";
 
     private float timer = 0f;
-    private List<AudioFrameData> samples = new List<AudioFrameData>();
+    private bool hasSaved = false;
 
-    struct AudioFrameData
+    private readonly List<AudioFrameData> samples = new();
+
+    private struct AudioFrameData
     {
         public float time;
         public float unityFrameMs;
@@ -24,43 +25,26 @@ public class LogAudioMetrics : MonoBehaviour
         public int voices;
     }
 
-    void Start()
+    private void Start()
     {
         UnityEngine.Debug.Log("[Perf] Audio metrics logging started.");
+        UnityEngine.Debug.Log($"[Perf] Output path: {Application.persistentDataPath}");
     }
 
-    void Update()
+    private void Update()
     {
         timer += Time.deltaTime;
 
-        // Unity frame time (ms)
         float frameTimeMs = Time.deltaTime * 1000f;
 
-        float dspCpu = 0f;
-        float streamCpu = 0f;
-        int voiceCount = 0;
+        RuntimeManager.StudioSystem.getCPUUsage(out var core, out var studio);
 
-        try
-        {
-            // Query FMOD CPU usage. Use out-var to match whatever signature
-            // the installed FMOD API provides, then read the numeric fields
-            // (`dsp` and `stream`) via reflection so this code compiles
-            // regardless of the exact CPU_USAGE type (FMOD or FMOD.Studio).
-            RuntimeManager.StudioSystem.getCPUUsage(out var core, out var studio);
+        float dspCpu = GetFloatMember(studio, "dsp");
+        float streamCpu = GetFloatMember(studio, "stream");
 
-            dspCpu = GetFloatMember(studio, "dsp");
-            streamCpu = GetFloatMember(studio, "stream");
-
-            // FMOD voice count
-            RuntimeManager.StudioSystem.getBus("bus:/", out FMOD.Studio.Bus masterBus);
-            masterBus.getChannelGroup(out FMOD.ChannelGroup group);
-            group.getNumChannels(out voiceCount);
-        }
-        catch (System.Exception e)
-        {
-            UnityEngine.Debug.LogWarning("[Perf] FMOD query failed: " + e.Message);
-            // Continue with zeros
-        }
+        RuntimeManager.StudioSystem.getBus("bus:/", out Bus masterBus);
+        masterBus.getChannelGroup(out var group);
+        group.getNumChannels(out var voiceCount);
 
         samples.Add(new AudioFrameData
         {
@@ -72,11 +56,11 @@ public class LogAudioMetrics : MonoBehaviour
             voices = voiceCount
         });
 
-        if (timer >= duration)
+        if (!hasSaved && timer >= duration)
         {
+            hasSaved = true;
             SaveJson();
-            UnityEngine.Debug.Log("[Perf] Metrics saved. Quitting.");
-            Application.Quit();
+            Invoke(nameof(Quit), 1f);
         }
     }
 
@@ -95,9 +79,12 @@ public class LogAudioMetrics : MonoBehaviour
         UnityEngine.Debug.Log("[Perf] JSON saved to: " + path);
     }
 
-    // Reflection helper: read a float field or property named `name` from an object.
-    // This lets the code work with either `FMOD.CPU_USAGE` or `FMOD.Studio.CPU_USAGE`
-    // depending on which type the installed FMOD assembly exposes.
+    private void Quit()
+    {
+        UnityEngine.Debug.Log("[Perf] Quitting application.");
+        Application.Quit();
+    }
+
     private float GetFloatMember(object obj, string name)
     {
         if (obj == null) return 0f;
