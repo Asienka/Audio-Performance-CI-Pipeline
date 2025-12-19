@@ -122,7 +122,7 @@ jobs:
        set -e
        if [ -f AudioProfiling/Assets/Tools/parse_audioprofiler.py ]; then
         echo "Running audio profiler parser..."
-        python AudioProfiling/Assets/Tools/parse_audioprofiler.py --input Build/AudioProfiling_Data/profiler_output.json --output report.json
+        python AudioProfiling/Assets/Tools/parse_audioprofiler.py --input profiler_output.json --output report.json
        else
         echo "No analysis tools found, skipping analysis"
        fi
