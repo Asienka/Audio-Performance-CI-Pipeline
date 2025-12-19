@@ -53,7 +53,9 @@ jobs:
         path: Build/
 
     - name: List build directory
-      run: dir Build/
+      run: |
+        Write-Host "Listing Build folder:"
+        dir Build/
 
     - name: Run Unity build (headless)
       shell: powershell
@@ -81,6 +83,12 @@ jobs:
         }
 
         Write-Host "Unity finished successfully."
+
+    - name: Debug list Build folder
+      shell: powershell
+      run: |
+        Write-Host "Listing Build folder:"
+        dir Build/
 
     - name: Locate profiler output
       shell: powershell

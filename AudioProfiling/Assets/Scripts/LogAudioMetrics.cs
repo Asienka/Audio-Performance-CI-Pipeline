@@ -30,6 +30,20 @@ public class LogAudioMetrics : MonoBehaviour
     {
         UnityEngine.Debug.Log("[Perf] Audio metrics logging started.");
         UnityEngine.Debug.Log($"[Perf] Output path: {Application.persistentDataPath}");
+
+        Invoke(nameof(ForceSave), duration + 10f);
+        
+        void ForceSave()
+{
+    if (samples.Count == 0)
+    {
+        UnityEngine.Debug.LogWarning("[Perf] No samples collected, forcing save anyway.");
+    }
+
+    SaveJson();
+    Application.Quit();
+}
+
     }
 
     private void Update()
