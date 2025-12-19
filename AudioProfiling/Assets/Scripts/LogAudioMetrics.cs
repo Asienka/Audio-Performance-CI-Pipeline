@@ -28,35 +28,24 @@ public class LogAudioMetrics : MonoBehaviour
 
     private void Start()
     {
-        UnityEngine.Debug.Log("[Perf] Audio metrics logging started.");
-        UnityEngine.Debug.Log($"[Perf] Output path: {Application.persistentDataPath}");
+        Debug.Log("[Perf] Audio metrics logging started.");
+        Debug.Log($"[Perf] Output file: {Path.Combine(Application.dataPath, outputFile)}");
 
+        // Safety force save in case Update() fails
         Invoke(nameof(ForceSave), duration + 10f);
-        
-        void ForceSave()
-{
-    if (samples.Count == 0)
-    {
-        UnityEngine.Debug.LogWarning("[Perf] No samples collected, forcing save anyway.");
-    }
-
-    SaveJson();
-    Application.Quit();
-}
-
     }
 
     private void Update()
     {
         timer += Time.deltaTime;
-
         float frameTimeMs = Time.deltaTime * 1000f;
 
-        RuntimeManager.StudioSystem.getCPUUsage(out var core, out var studio);
-
+        // Get FMOD CPU usage
+        RuntimeManager.StudioSystem.getCPUUsage(out _, out var studio);
         float dspCpu = GetFloatMember(studio, "dsp");
         float streamCpu = GetFloatMember(studio, "stream");
 
+        // Get voice count
         RuntimeManager.StudioSystem.getBus("bus:/", out Bus masterBus);
         masterBus.getChannelGroup(out var group);
         group.getNumChannels(out var voiceCount);
@@ -77,11 +66,26 @@ public class LogAudioMetrics : MonoBehaviour
             SaveJson();
             Invoke(nameof(Quit), 1f);
         }
+
+        // Optional: debug every 10 samples
+        if (samples.Count % 10 == 0)
+            Debug.Log($"[Perf] Collected {samples.Count} samples");
+    }
+
+    private void ForceSave()
+    {
+        if (samples.Count == 0)
+        {
+            Debug.LogWarning("[Perf] No samples collected, forcing save anyway.");
+        }
+        SaveJson();
+        Invoke(nameof(Quit), 0.5f);
     }
 
     private void SaveJson()
     {
-        string path = Path.Combine(Directory.GetCurrentDirectory(), outputFile);
+        string path = Path.Combine(Application.dataPath, outputFile);
+        Debug.Log("[Perf] Saving JSON to: " + path);
 
         var wrapper = new
         {
@@ -91,13 +95,7 @@ public class LogAudioMetrics : MonoBehaviour
         };
 
         File.WriteAllText(path, JsonUtility.ToJson(wrapper, true));
-        UnityEngine.Debug.Log("[Perf] JSON saved to: " + path);
-    }
-
-    private void Quit()
-    {
-        UnityEngine.Debug.Log("[Perf] Quitting application.");
-        Application.Quit();
+        Debug.Log("[Perf] JSON saved successfully.");
     }
 
     private float GetFloatMember(object obj, string name)
@@ -121,5 +119,14 @@ public class LogAudioMetrics : MonoBehaviour
             if (val is int i2) return i2;
         }
         return 0f;
+    }
+
+    private void Quit()
+    {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
     }
 }

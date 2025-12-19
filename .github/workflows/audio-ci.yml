@@ -53,48 +53,21 @@ jobs:
         path: Build/
 
     - name: List build directory
-      run: |
-        Write-Host "Listing Build folder:"
-        dir Build/
+      run: dir Build/
 
     - name: Run Unity build (headless)
       shell: powershell
       run: |
-        Write-Host "Running Unity build (headless)..."
-
         $exe = Get-ChildItem Build -Filter AudioProfiling.exe
-
-        if (-not $exe) {
-            Write-Error "AudioProfiling.exe not found in Build/"
-            exit 1
-        }
-
-        Write-Host "Found executable: $($exe.FullName)"
-
-        $process = Start-Process `
-          -FilePath $exe.FullName `
-          -ArgumentList "-batchmode -nographics -logFile unity.log" `
-          -PassThru `
-          -Wait
-
-        if ($process.ExitCode -ne 0) {
-            Write-Error "Unity exited with code $($process.ExitCode)"
-            exit $process.ExitCode
-        }
-
-        Write-Host "Unity finished successfully."
-
-    - name: Debug list Build folder
-      shell: powershell
-      run: |
-        Write-Host "Listing Build folder:"
-        dir Build/
+        if (-not $exe) { Write-Error "AudioProfiling.exe not found in Build/"; exit 1 }
+        Write-Host "Running executable: $($exe.FullName)"
+        Start-Process -FilePath $exe.FullName -ArgumentList "-batchmode -nographics -logFile unity.log" -Wait
 
     - name: Locate profiler output
       shell: powershell
       run: |
         Write-Host "Searching for profiler_output.json..."
-        $profilerOutput = Get-ChildItem -Recurse $env:LOCALAPPDATA -Filter profiler_output.json | Select-Object -ExpandProperty FullName
+        $profilerOutput = Get-ChildItem Build -Recurse -Filter profiler_output.json | Select-Object -ExpandProperty FullName
         if (-not $profilerOutput) {
           Write-Error "profiler_output.json not found."
           exit 1
@@ -107,7 +80,7 @@ jobs:
         name: Profiler-Logs
         path: |
           Build/profiler_output.json
-          unity.log
+          Build/unity.log
 
   analyze:
     name: Analyze Audio Performance
