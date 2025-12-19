@@ -36,6 +36,9 @@ public class LogAudioMetrics : MonoBehaviour
 
     void ForceSave()
     {
+        if (hasSaved) return;
+        hasSaved = true;
+
         if (samples.Count == 0)
         {
             UnityEngine.Debug.LogWarning("[Perf] No samples collected, forcing save anyway.");
@@ -69,6 +72,8 @@ public class LogAudioMetrics : MonoBehaviour
         voices = voiceCount
     });
 
+    UnityEngine.Debug.Log($"[Perf] Samples collected: {samples.Count}");
+
     if (!hasSaved && timer >= duration)
     {
         hasSaved = true;
@@ -80,7 +85,6 @@ public class LogAudioMetrics : MonoBehaviour
 private void SaveJson()
 {
     string path = Path.Combine(Application.persistentDataPath, outputFile);
-    UnityEngine.Debug.Log("[Perf] JSON saved to: " + path);
 
     var wrapper = new
     {
