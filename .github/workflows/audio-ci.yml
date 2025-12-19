@@ -61,7 +61,10 @@ jobs:
         $exe = Get-ChildItem Build -Filter AudioProfiling.exe
         if (-not $exe) { Write-Error "AudioProfiling.exe not found in Build/"; exit 1 }
         Write-Host "Running executable: $($exe.FullName)"
-        Start-Process -FilePath $exe.FullName -ArgumentList "-batchmode -nographics -logFile unity.log" -Wait
+        Start-Process 
+        -FilePath $exe.FullName 
+        -ArgumentList "-batchmode -nographics -logFile `"$PWD\unity.log`"" ` 
+        -Wait
 
     - name: Locate profiler output
       shell: powershell
@@ -79,8 +82,8 @@ jobs:
       with:
         name: Profiler-Logs
         path: |
-          Build/profiler_output.json
-          Build/unity.log
+          Build/AudioProfiling_Data/profiler_output.json
+          unity.log
 
   analyze:
     name: Analyze Audio Performance
