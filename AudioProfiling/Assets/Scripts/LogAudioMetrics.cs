@@ -4,6 +4,8 @@ using UnityEngine;
 using FMODUnity;
 using FMOD;                // for CPU_USAGE and ChannelGroup
 using FMOD.Studio;         // for Bus
+using Debug = UnityEngine.Debug;
+using FmodDebug = FMOD.Debug;
 
 public class LogAudioMetrics : MonoBehaviour
 {
