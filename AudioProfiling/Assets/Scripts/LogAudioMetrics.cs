@@ -32,94 +32,87 @@ public class LogAudioMetrics : MonoBehaviour
         UnityEngine.Debug.Log($"[Perf] Output path: {Application.persistentDataPath}");
 
         Invoke(nameof(ForceSave), duration + 10f);
-        
-        void ForceSave()
-{
-    if (samples.Count == 0)
-    {
-        UnityEngine.Debug.LogWarning("[Perf] No samples collected, forcing save anyway.");
     }
 
-    SaveJson();
-    Application.Quit();
-}
+    void ForceSave()
+    {
+        if (samples.Count == 0)
+        {
+            UnityEngine.Debug.LogWarning("[Perf] No samples collected, forcing save anyway.");
+        }
 
+        SaveJson();
+        Invoke(nameof(Quit), 0.5f);
     }
 
     private void Update()
     {
-        timer += Time.deltaTime;
+        timer += Time.deltaTime;    
+    float frameTimeMs = Time.deltaTime * 1000f;
 
-        float frameTimeMs = Time.deltaTime * 1000f;
+    RuntimeManager.StudioSystem.getCPUUsage(out var core, out var studio);
 
-        RuntimeManager.StudioSystem.getCPUUsage(out var core, out var studio);
+    float dspCpu = GetFloatMember(studio, "dsp");
+    float streamCpu = GetFloatMember(studio, "stream");
 
-        float dspCpu = GetFloatMember(studio, "dsp");
-        float streamCpu = GetFloatMember(studio, "stream");
+    RuntimeManager.StudioSystem.getBus("bus:/", out Bus masterBus);
+    masterBus.getChannelGroup(out var group);
+    group.getNumChannels(out var voiceCount);
 
-        RuntimeManager.StudioSystem.getBus("bus:/", out Bus masterBus);
-        masterBus.getChannelGroup(out var group);
-        group.getNumChannels(out var voiceCount);
-
-        samples.Add(new AudioFrameData
-        {
-            time = Time.time,
-            unityFrameMs = frameTimeMs,
-            fmodCpuDsp = dspCpu,
-            fmodCpuStream = streamCpu,
-            totalFmodCpu = dspCpu + streamCpu,
-            voices = voiceCount
-        });
-
-        if (!hasSaved && timer >= duration)
-        {
-            hasSaved = true;
-            SaveJson();
-            Invoke(nameof(Quit), 1f);
-        }
-    }
-
-    private void SaveJson()
+    samples.Add(new AudioFrameData
     {
-        string path = Path.Combine(Directory.GetCurrentDirectory(), outputFile);
+        time = Time.time,
+        unityFrameMs = frameTimeMs,
+        fmodCpuDsp = dspCpu,
+        fmodCpuStream = streamCpu,
+        totalFmodCpu = dspCpu + streamCpu,
+        voices = voiceCount
+    });
 
-        var wrapper = new
-        {
-            timestamp = System.DateTime.UtcNow.ToString("o"),
-            sampleCount = samples.Count,
-            samples = samples
-        };
-
-        File.WriteAllText(path, JsonUtility.ToJson(wrapper, true));
-        UnityEngine.Debug.Log("[Perf] JSON saved to: " + path);
-    }
-
-    private void Quit()
+    if (!hasSaved && timer >= duration)
     {
-        UnityEngine.Debug.Log("[Perf] Quitting application.");
-        Application.Quit();
+        hasSaved = true;
+        SaveJson();
+        Invoke(nameof(Quit), 1f);
     }
+}
 
-    private float GetFloatMember(object obj, string name)
+private void SaveJson()
+{
+    string path = Path.Combine(Application.persistentDataPath, outputFile);
+    UnityEngine.Debug.Log("[Perf] JSON saved to: " + path);
+
+    var wrapper = new
     {
-        if (obj == null) return 0f;
-        var t = obj.GetType();
-        var prop = t.GetProperty(name);
-        if (prop != null)
-        {
-            var val = prop.GetValue(obj);
-            if (val is float f) return f;
-            if (val is double d) return (float)d;
-            if (val is int i) return i;
-        }
-        var field = t.GetField(name);
-        if (field != null)
-        {
-            var val = field.GetValue(obj);
-            if (val is float f2) return f2;
-            if (val is double d2) return (float)d2;
-            if (val is int i2) return i2;
-        }
-        return 0f;
+        timestamp = System.DateTime.UtcNow.ToString("o"),
+        sampleCount = samples.Count,
+        samples = samples
+    };
+
+    File.WriteAllText(path, JsonUtility.ToJson(wrapper, true));
+    UnityEngine.Debug.Log("[Perf] JSON saved to: " + path);
+}
+
+private float GetFloatMember(object obj, string name)
+{
+    if (obj == null) return 0f;
+    var t = obj.GetType();
+    var prop = t.GetProperty(name);
+    if (prop != null)
+    {
+        var val = prop.GetValue(obj);
+        if (val is float f) return f;
+        if (val is double d) return (float)d;
+        if (val is int i) return i;
     }
+    var field = t.GetField(name);
+    if (field != null)
+    {
+        var val = field.GetValue(obj);
+        if (val is float f2) return f2;
+        if (val is double d2) return (float)d2;
+        if (val is int i2) return i2;
+    }
+    return 0f;
+}
 }
