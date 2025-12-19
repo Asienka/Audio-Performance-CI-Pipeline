@@ -58,13 +58,19 @@ jobs:
     - name: Run Unity build (headless)
       shell: powershell
       run: |
-        $exe = Get-ChildItem Build -Filter AudioProfiling.exe
-        if (-not $exe) { Write-Error "AudioProfiling.exe not found in Build/"; exit 1 }
+        $exe = Get-ChildItem -Path Build -Recurse -Filter AudioProfiling.exe | Select-Object -First 1
+
+        if (-not $exe) {
+        Write-Error "AudioProfiling.exe not found in Build/"
+        exit 1
+        }
+
         Write-Host "Running executable: $($exe.FullName)"
-        Start-Process 
-        -FilePath $exe.FullName 
-        -ArgumentList "-batchmode -nographics -logFile `"$PWD\unity.log`"" ` 
-        -Wait
+        Start-Process `
+        -FilePath $exe.FullName `
+        -ArgumentList "-batchmode -nographics -logFile `"$PWD\unity.log`"" `
+        -Wait `
+        -NoNewWindow
 
     - name: Locate profiler output
       shell: powershell
