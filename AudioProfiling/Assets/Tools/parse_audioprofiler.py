@@ -30,7 +30,7 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 metrics_path = Path(sys.argv[1])
-thresholds_path = Path(__file__).parent / "thresholds.json"
+thresholds_path = Path(__file__).parent / "audio_thresholds.json"
 
 metrics = load_json(metrics_path)
 thresholds = load_json(thresholds_path)
