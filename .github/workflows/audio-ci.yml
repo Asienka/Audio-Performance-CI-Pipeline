@@ -120,7 +120,8 @@ jobs:
         echo "Running audio profiler parser..."
         python AudioProfiling/Assets/Tools/parse_audioprofiler.py --input ProfilerLogs/profiler_output.json --output report.json
        else
-       echo "No analysis tools found, skipping analys
+       echo "No analysis tools found, skipping analysis"
+        fi
 
    - name: Upload report
      uses: actions/upload-artifact@v5.0.0
