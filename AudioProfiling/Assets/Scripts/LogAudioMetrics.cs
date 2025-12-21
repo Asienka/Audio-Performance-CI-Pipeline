@@ -11,7 +11,7 @@ public class LogAudioMetrics : MonoBehaviour
 
 {
     [Header("Profiling Settings")]
-    public float duration = 1f;
+    public float duration = 10f;
     public string outputFile = "profiler_output.json";
 
     private float timer = 0f;
@@ -42,6 +42,11 @@ public class LogAudioMetrics : MonoBehaviour
     {
         Debug.Log("[Perf] Audio metrics logging started.");
         Debug.Log($"[Perf] Output file: {Path.Combine(Application.dataPath, outputFile)}");
+
+        // Play test FMOD event
+        FMOD.Studio.EventInstance instance = RuntimeManager.CreateInstance("event:/OneShot_Explosion");
+        instance.start();
+        instance.release();
 
         // Safety force save in case Update() fails
         Invoke(nameof(ForceSave), duration + 10f);
