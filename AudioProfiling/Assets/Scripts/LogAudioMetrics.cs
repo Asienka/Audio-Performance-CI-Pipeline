@@ -8,13 +8,6 @@ using Debug = UnityEngine.Debug;
 using FmodDebug = FMOD.Debug;
 
 public class LogAudioMetrics : MonoBehaviour
-[System.Serializable]
-private class AudioMetricsWrapper
-{
-    public string timestamp;
-    public int sampleCount;
-    public List<AudioFrameData> samples;
-}
 
 {
     [Header("Profiling Settings")]
