@@ -8,6 +8,13 @@ using Debug = UnityEngine.Debug;
 using FmodDebug = FMOD.Debug;
 
 public class LogAudioMetrics : MonoBehaviour
+[System.Serializable]
+private class AudioMetricsWrapper
+{
+    public string timestamp;
+    public int sampleCount;
+    public List<AudioFrameData> samples;
+}
 
 {
     [Header("Profiling Settings")]
@@ -49,25 +56,14 @@ public class LogAudioMetrics : MonoBehaviour
 
     private void Update()
     {
-        if (!RuntimeManager.IsInitialized)
-            return;
-
         timer += Time.deltaTime;
         float frameTimeMs = Time.deltaTime * 1000f;
 
-        // FMOD CPU usage (FMOD 2.03)
-        RuntimeManager.CoreSystem.getCPUUsage(
-            out FMOD.CPU_USAGE cpuCore,
-            out FMOD.CPU_USAGE cpuStudio
-        );
-
-        float dspCpu = cpuStudio.dsp;
-        float streamCpu = cpuStudio.stream;
-        float totalCpu = cpuStudio.dsp + cpuStudio.stream + cpuStudio.update;
-
         // Get FMOD CPU usage
-        RuntimeManager.StudioSystem.getCPUUsage(out FMOD.CPU_USAGE cpu);
-    
+        RuntimeManager.StudioSystem.getCPUUsage(out _, out var studio);
+        float dspCpu = GetFloatMember(studio, "dsp");
+        float streamCpu = GetFloatMember(studio, "stream");
+
         // Get voice count
         RuntimeManager.StudioSystem.getBus("bus:/", out Bus masterBus);
         masterBus.getChannelGroup(out var group);
@@ -79,7 +75,7 @@ public class LogAudioMetrics : MonoBehaviour
             unityFrameMs = frameTimeMs,
             fmodCpuDsp = dspCpu,
             fmodCpuStream = streamCpu,
-            totalFmodCpu = totalCpu,
+            totalFmodCpu = dspCpu + streamCpu,
             voices = voiceCount
         });
 
