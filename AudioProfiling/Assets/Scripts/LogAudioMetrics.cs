@@ -36,6 +36,15 @@ private class AudioMetricsWrapper
         public int voices;
     }
 
+    [System.Serializable]
+    private class AudioMetricsWrapper
+    {
+        public string timestamp;
+        public int sampleCount;
+        public List<AudioFrameData> samples;
+    }
+
+
     private void Start()
     {
         Debug.Log("[Perf] Audio metrics logging started.");
