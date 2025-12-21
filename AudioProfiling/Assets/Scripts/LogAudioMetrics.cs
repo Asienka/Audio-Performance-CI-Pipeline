@@ -53,9 +53,13 @@ public class LogAudioMetrics : MonoBehaviour
         float frameTimeMs = Time.deltaTime * 1000f;
 
         // Get FMOD CPU usage
-        RuntimeManager.StudioSystem.getCPUUsage(out _, out var studio);
-        float dspCpu = GetFloatMember(studio, "dsp");
-        float streamCpu = GetFloatMember(studio, "stream");
+        RuntimeManager.CoreSystem.getCPUUsage(
+        out FMOD.CPU_USAGE cpuStudio
+);
+
+        float dspCpu = cpuStudio.dsp;
+        float streamCpu = cpuStudio.stream;
+        float totalCpu = cpuStudio.dsp + cpuStudio.stream + cpuStudio.update;
 
         // Get voice count
         RuntimeManager.StudioSystem.getBus("bus:/", out Bus masterBus);
@@ -68,7 +72,7 @@ public class LogAudioMetrics : MonoBehaviour
             unityFrameMs = frameTimeMs,
             fmodCpuDsp = dspCpu,
             fmodCpuStream = streamCpu,
-            totalFmodCpu = dspCpu + streamCpu,
+            totalFmodCpu = totalCpu,
             voices = voiceCount
         });
 
