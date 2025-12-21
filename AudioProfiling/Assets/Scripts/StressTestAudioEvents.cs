@@ -96,6 +96,14 @@ public class StressTestAudioEvents : MonoBehaviour
             }
 
             instance.start();
+            // Release differently depending on environment
+#if UNITY_EDITOR || !UNITY_SERVER
+            instance.release();
+#else
+            // In headless/CI builds: wait a few frames before releasing to ensure FMOD processes it
+            StartCoroutine(ReleaseAfterFrames(instance, 5));
+#endif
+
             activeInstances.Add(instance);
         }
 
@@ -122,6 +130,13 @@ public class StressTestAudioEvents : MonoBehaviour
         }
 
         activeInstances.Clear();
+    }
+    
+    private System.Collections.IEnumerator ReleaseAfterFrames(EventInstance inst, int frames)
+    {
+        for (int i = 0; i < frames; i++)
+            yield return null;
+        inst.release();
     }
 }
 
