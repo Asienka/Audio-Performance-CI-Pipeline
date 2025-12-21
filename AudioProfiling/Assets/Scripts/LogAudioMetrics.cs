@@ -8,6 +8,14 @@ using Debug = UnityEngine.Debug;
 using FmodDebug = FMOD.Debug;
 
 public class LogAudioMetrics : MonoBehaviour
+[System.Serializable]
+private class AudioMetricsWrapper
+{
+    public string timestamp;
+    public int sampleCount;
+    public List<AudioFrameData> samples;
+}
+
 {
     [Header("Profiling Settings")]
     public float duration = 1f;
@@ -89,7 +97,7 @@ public class LogAudioMetrics : MonoBehaviour
         string path = Path.Combine(Application.dataPath, outputFile);
         Debug.Log("[Perf] Saving JSON to: " + path);
 
-        var wrapper = new
+        var wrapper = new AudioMetricsWrapper
         {
             timestamp = System.DateTime.UtcNow.ToString("o"),
             sampleCount = samples.Count,
