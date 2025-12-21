@@ -46,7 +46,7 @@ public class LogAudioMetrics : MonoBehaviour
         // Play test FMOD event
         FMOD.Studio.EventInstance instance = RuntimeManager.CreateInstance("event:/OneShot_Explosion");
         instance.start();
-        instance.release();
+        //instance.release();
 
         // Safety force save in case Update() fails
         Invoke(nameof(ForceSave), duration + 10f);
