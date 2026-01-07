@@ -97,7 +97,7 @@ public class StressTestAudioEvents : MonoBehaviour
 
             instance.start();
             // Release differently depending on environment
-#if UNITY_EDITOR || !UNITY_SERVER
+#if UNITY_EDITOR
             instance.release();
 #else
             // In headless/CI builds: wait a few frames before releasing to ensure FMOD processes it
@@ -126,7 +126,6 @@ public class StressTestAudioEvents : MonoBehaviour
         foreach (var inst in activeInstances)
         {
             inst.stop(FMOD.Studio.STOP_MODE.IMMEDIATE);
-            inst.release();
         }
 
         activeInstances.Clear();

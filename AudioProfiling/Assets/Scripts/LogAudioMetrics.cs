@@ -18,6 +18,7 @@ public class LogAudioMetrics : MonoBehaviour
     private bool hasSaved = false;
 
     private readonly List<AudioFrameData> samples = new();
+    private EventInstance testInstance;
 
     private struct AudioFrameData
     {
@@ -44,10 +45,10 @@ public class LogAudioMetrics : MonoBehaviour
         Debug.Log($"[Perf] Output file: {Path.Combine(Application.dataPath, outputFile)}");
 
         // Play test FMOD event
-        FMOD.Studio.EventInstance instance = RuntimeManager.CreateInstance("event:/OneShot_Explosion");
-        instance.start();
-        //instance.release();
-
+        testInstance = RuntimeManager.CreateInstance("event:/OneShot_Explosion");
+        testInstance.start();
+        // Delay release so FMOD has time to register CPU/voices usage
+        Invoke(nameof(ReleaseTestEvent), 0.5f);
         // Safety force save in case Update() fails
         Invoke(nameof(ForceSave), duration + 10f);
     }
@@ -91,6 +92,12 @@ public class LogAudioMetrics : MonoBehaviour
         // Optional: debug every 10 samples
         if (samples.Count % 10 == 0)
             Debug.Log($"[Perf] Collected {samples.Count} samples");
+
+            
+    }
+    private void ReleaseTestEvent()
+    {
+        testInstance.release();
     }
 
     private void ForceSave()
@@ -117,29 +124,6 @@ public class LogAudioMetrics : MonoBehaviour
 
         File.WriteAllText(path, JsonUtility.ToJson(wrapper, true));
         Debug.Log("[Perf] JSON saved successfully.");
-    }
-
-    private float GetFloatMember(object obj, string name)
-    {
-        if (obj == null) return 0f;
-        var t = obj.GetType();
-        var prop = t.GetProperty(name);
-        if (prop != null)
-        {
-            var val = prop.GetValue(obj);
-            if (val is float f) return f;
-            if (val is double d) return (float)d;
-            if (val is int i) return i;
-        }
-        var field = t.GetField(name);
-        if (field != null)
-        {
-            var val = field.GetValue(obj);
-            if (val is float f2) return f2;
-            if (val is double d2) return (float)d2;
-            if (val is int i2) return i2;
-        }
-        return 0f;
     }
 
     private void Quit()
