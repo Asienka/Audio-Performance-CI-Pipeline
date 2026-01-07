@@ -4,32 +4,32 @@ on:
  pull_request:
   branches:
     - main
-
  push:
   branches:
     - main
+    - AnalyzeAudioFix
 
-concurrency:
-  group: audio-profiler
-  cancel-in-progress: true
-  
+env:
+  UNITY_VERSION: 2023.1.22f1
+  BUILD_NAME: AudioProfiling
+
 jobs:
-# ============================================================
-# BUILD
-# ============================================================
   build:
     name: Build Unity Project
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
-      
+      uses: actions/checkout@v6.0.1
+
     - name: Cache Unity Library
-      uses: actions/cache@v4
+      uses: actions/cache@v3
       with:
-          path: AudioProfiling/Library
-          key: Library-${{ runner.os }}-${{ hashFiles('AudioProfiling/Packages/manifest.json') }}
+        path: AudioProfiling/Library
+        key: Library-${{ env.UNITY_VERSION }}-${{ hashFiles('AudioProfiling/Assets/**', 'AudioProfiling/Packages/**', 'AudioProfiling/ProjectSettings/**') }}
+        restore-keys: |
+          Library-${{ env.UNITY_VERSION }}-
 
     - name: Unity Builder
       uses: game-ci/unity-builder@v4
@@ -40,125 +40,218 @@ jobs:
       with:
         projectPath: AudioProfiling
         targetPlatform: StandaloneWindows64
-        unityVersion: 2023.1.22f1
-        buildName: AudioProfiling
+        unityVersion: ${{ env.UNITY_VERSION }}
+        buildName: ${{ env.BUILD_NAME }}
 
     - name: Upload build
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5.0.0
       with:
         name: Build-Executable
         path: build/StandaloneWindows64/
-        retention-days: 7
-# ============================================================
-# PROFILE
-# ============================================================
+        retention-days: 1
+
   profile:
     name: Run Build and Generate Profiler Logs
     needs: build
     runs-on: windows-latest
+    timeout-minutes: 20
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@4
+      uses: actions/checkout@v6.0.1
 
     - name: Download build from artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@6.0.0
       with:
         name: Build-Executable
         path: Build/
 
     - name: List build directory
-      run: dir Build/
+      run: |
+        Write-Host "Build directory contents:"
+        Get-ChildItem -Path Build -Recurse | Format-Table -AutoSize
 
     - name: Run Unity build (headless)
       shell: powershell
+      timeout-minutes: 15
       run: |
-        $exe = Get-ChildItem -Path Build -Recurse -Filter AudioProfiling.exe | Select-Object -First 1
+        $exe = Get-ChildItem -Path Build -Recurse -Filter "${{ env.BUILD_NAME }}.exe" | Select-Object -First 1
 
         if (-not $exe) {
-        Write-Error "AudioProfiling.exe not found in Build/"
-        exit 1
+          Write-Error "${{ env.BUILD_NAME }}.exe not found in Build/"
+          exit 1
         }
 
         Write-Host "Running executable: $($exe.FullName)"
-        Start-Process `
-        -FilePath $exe.FullName `
-        -ArgumentList "-batchmode -nographics -logFile `"$PWD\unity.log`"" `
-        -Wait `
-        -NoNewWindow
+        
+        $process = Start-Process `
+          -FilePath $exe.FullName `
+          -ArgumentList "-batchmode -nographics -logFile `"$PWD\unity.log`"" `
+          -PassThru `
+          -NoNewWindow
+
+        # Wait with timeout
+        $timeout = 600 # 10 minutes
+        if (-not $process.WaitForExit($timeout * 1000)) {
+          Write-Error "Process timed out after $timeout seconds"
+          $process.Kill()
+          exit 1
+        }
+
+        if ($process.ExitCode -ne 0) {
+          Write-Error "Unity process exited with code $($process.ExitCode)"
+          if (Test-Path unity.log) {
+            Write-Host "=== Unity Log ==="
+            Get-Content unity.log -Tail 50
+          }
+          exit 1
+        }
+
+        Write-Host "Unity process completed successfully"
 
     - name: Locate profiler output
-      shell: bash
+      shell: powershell
       run: |
-          set -euo pipefail
-
-          COMPANY="DefaultCompany"
-          PRODUCT="AudioProfiling"
-          FILE="profiler_output.json"
-
-          BASE="/c/Users/runneradmin/AppData/LocalLow"
-          PATH_JSON="$BASE/$COMPANY/$PRODUCT/$FILE"
-
-          echo "Looking for profiler output at:"
-          echo "$PATH_JSON"
-
-          if [ ! -f "$PATH_JSON" ]; then
-            echo "::error::profiler_output.json not found"
-            exit 1
-          fi
-
-          cp "$PATH_JSON" .
-          echo "Profiler output copied to workspace"
-
-          # sanity check
-          grep -q '"sampleCount"' "$FILE"
+        Write-Host "Searching for profiler_output.json..."
+        
+        # Check multiple possible locations
+        $searchPaths = @(
+          "Build",
+          "$env:APPDATA\..\LocalLow",
+          "$env:USERPROFILE\AppData\LocalLow"
+        )
+        
+        $profilerOutput = $null
+        foreach ($path in $searchPaths) {
+          if (Test-Path $path) {
+            Write-Host "Checking: $path"
+            $found = Get-ChildItem $path -Recurse -Filter profiler_output.json -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) {
+              $profilerOutput = $found.FullName
+              break
+            }
+          }
+        }
+        
+        if (-not $profilerOutput) {
+          Write-Error "profiler_output.json not found in any expected location"
+          Write-Host "Searched paths:"
+          $searchPaths | ForEach-Object { Write-Host "  - $_" }
+          exit 1
+        }
+        
+        Write-Host "Found profiler_output.json at: $profilerOutput"
+        
+        # Copy to consistent location for artifact upload
+        $destDir = "Build/${{ env.BUILD_NAME }}_Data"
+        New-Item -ItemType Directory -Force -Path $destDir | Out-Null
+        Copy-Item $profilerOutput "$destDir\profiler_output.json"
+        Write-Host "Copied to: $destDir\profiler_output.json"
 
     - name: Upload profiler logs
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5.0.0
+      if: always()
       with:
         name: Profiler-Logs
         path: |
-          Build/AudioProfiling_Data/profiler_output.json
+          Build/${{ env.BUILD_NAME }}_Data/profiler_output.json
           unity.log
-# ============================================================
-# ANALYZE
-# ============================================================
+        retention-days: 7
+
   analyze:
-    name: Analyze Audio Performance
-    needs: profile
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
- 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+   name: Analyze Audio Performance
+   needs: profile
+   runs-on: ubuntu-latest
+   timeout-minutes: 10
 
-      - name: Download profiler logs
-        uses: actions/download-artifact@v4
-        with:
-          name: Profiler-Logs
-          path: .
+   steps:
+   - name: Checkout repository
+     uses: actions/checkout@v6.0.1
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+   - name: Download profiler logs
+     uses: actions/download-artifact@v6.0.0
+     with:
+       name: Profiler-Logs
+       path: profiler-data/
 
-      - name: Run audio performance analysis
-        shell: bash
-        run: |
-          set -e
+   - name: List downloaded files
+     run: |
+        echo "=== Downloaded artifacts ==="
+        ls -lR profiler-data/
 
-          if [ ! -f profiler_output.json ]; then
-            echo "::error::profiler_output.json missing"
-            exit 1
-          fi
+   - name: Setup Python
+     uses: actions/setup-python@v5
+     with:
+       python-version: '3.11'
+       cache: 'pip'
 
-          python AudioProfiling/Assets/Tools/parse_audioprofiler.py profiler_output.json
+   - name: Install Python dependencies
+     run: |
+       if [ -f requirements.txt ]; then
+         pip install -r requirements.txt
+       fi
 
-      - name: Upload analysis report
-        uses: actions/upload-artifact@v4
-        with:
-          name: Analysis-Report
-          path: profiler_output.json
-          retention-days: 7
+   - name: Locate profiler output
+     id: find_output
+     run: |
+       # Find profiler_output.json flexibly
+       PROFILER_JSON=$(find profiler-data -name "profiler_output.json" -type f | head -n 1)
+       
+       if [ -z "$PROFILER_JSON" ]; then
+         echo "ERROR: profiler_output.json not found"
+         exit 1
+       fi
+       
+       echo "Found: $PROFILER_JSON"
+       echo "profiler_path=$PROFILER_JSON" >> $GITHUB_OUTPUT
+
+   - name: Run performance analysis
+     run: |
+       set -e
+       
+       SCRIPT_PATH="AudioProfiling/Assets/Tools/parse_audioprofiler.py"
+       
+       if [ ! -f "$SCRIPT_PATH" ]; then
+         echo "ERROR: Analysis script not found at $SCRIPT_PATH"
+         exit 1
+       fi
+       
+       echo "Running audio profiler analysis..."
+       python "$SCRIPT_PATH" "${{ steps.find_output.outputs.profiler_path }}"
+
+   - name: Upload analysis report
+     uses: actions/upload-artifact@v5.0.0
+     if: always()
+     with:
+       name: Analysis-Report
+       path: |
+         report.json
+         profiler-data/
+       retention-days: 30
+
+   - name: Comment PR with results
+     if: github.event_name == 'pull_request' && always()
+     uses: actions/github-script@v7
+     with:
+       script: |
+         const fs = require('fs');
+         
+         let comment = '## 🎵 Audio Performance Analysis\n\n';
+         
+         try {
+           if (fs.existsSync('report.json')) {
+             const report = JSON.parse(fs.readFileSync('report.json', 'utf8'));
+             comment += '```json\n' + JSON.stringify(report, null, 2) + '\n```\n';
+           } else {
+             comment += '⚠️ No report.json generated\n';
+           }
+         } catch (error) {
+           comment += `❌ Error reading report: ${error.message}\n`;
+         }
+         
+         await github.rest.issues.createComment({
+           owner: context.repo.owner,
+           repo: context.repo.repo,
+           issue_number: context.issue.number,
+           body: comment
+         });
