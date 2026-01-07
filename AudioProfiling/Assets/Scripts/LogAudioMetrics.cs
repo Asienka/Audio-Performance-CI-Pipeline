@@ -2,34 +2,43 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using FMODUnity;
-using FMOD;                // for CPU_USAGE and ChannelGroup
-using FMOD.Studio;         // for Bus
+using FMOD;
+using FMOD.Studio;
 using Debug = UnityEngine.Debug;
-using FmodDebug = FMOD.Debug;
 
 public class LogAudioMetrics : MonoBehaviour
-
 {
     [Header("Profiling Settings")]
+    [Tooltip("How long to record audio metrics (seconds).")]
     public float duration = 10f;
+
+    [Tooltip("Profiler output file name.")]
     public string outputFile = "profiler_output.json";
 
     private float timer = 0f;
     private bool hasSaved = false;
 
     private readonly List<AudioFrameData> samples = new();
-    private EventInstance testInstance;
 
+    // ----------------------------
+    // Per-frame audio metrics
+    // ----------------------------
     private struct AudioFrameData
     {
         public float time;
         public float unityFrameMs;
+
         public float fmodCpuDsp;
         public float fmodCpuStream;
+        public float fmodCpuUpdate;
         public float totalFmodCpu;
+
         public int voices;
     }
 
+    // ----------------------------
+    // JSON wrapper
+    // ----------------------------
     [System.Serializable]
     private class AudioMetricsWrapper
     {
@@ -38,82 +47,61 @@ public class LogAudioMetrics : MonoBehaviour
         public List<AudioFrameData> samples;
     }
 
-
-    private void Start()
-    {
-        Debug.Log("[Perf] Audio metrics logging started.");
-        Debug.Log($"[Perf] Output file: {Path.Combine(Application.dataPath, outputFile)}");
-
-        // Play test FMOD event
-        testInstance = RuntimeManager.CreateInstance("event:/OneShot_Explosion");
-        testInstance.start();
-        // Delay release so FMOD has time to register CPU/voices usage
-        Invoke(nameof(ReleaseTestEvent), 0.5f);
-        // Safety force save in case Update() fails
-        Invoke(nameof(ForceSave), duration + 10f);
-    }
-
     private void Update()
     {
+        if (hasSaved)
+            return;
+
         timer += Time.deltaTime;
-        float frameTimeMs = Time.deltaTime * 1000f;
 
-        // Get FMOD CPU usage
-        RuntimeManager.CoreSystem.getCPUUsage(
-        out FMOD.CPU_USAGE cpuStudio
-);
+        // ----------------------------
+        // Unity frame timing
+        // ----------------------------
+        float frameMs = Time.deltaTime * 1000f;
 
-        float dspCpu = cpuStudio.dsp;
-        float streamCpu = cpuStudio.stream;
-        float totalCpu = cpuStudio.dsp + cpuStudio.stream + cpuStudio.update;
+        // ----------------------------
+        // FMOD CPU (low-level)
+        // ----------------------------
+        RuntimeManager.CoreSystem.getCPUUsage(out FMOD.CPU_USAGE cpu);
 
-        // Get voice count
+        // ----------------------------
+        // Active voices (channels)
+        // ----------------------------
         RuntimeManager.StudioSystem.getBus("bus:/", out Bus masterBus);
-        masterBus.getChannelGroup(out var group);
-        group.getNumChannels(out var voiceCount);
+        masterBus.getChannelGroup(out ChannelGroup group);
+        group.getNumChannels(out int channelCount);
 
+        // ----------------------------
+        // Store sample
+        // ----------------------------
         samples.Add(new AudioFrameData
         {
             time = Time.time,
-            unityFrameMs = frameTimeMs,
-            fmodCpuDsp = dspCpu,
-            fmodCpuStream = streamCpu,
-            totalFmodCpu = totalCpu,
-            voices = voiceCount
+            unityFrameMs = frameMs,
+
+            fmodCpuDsp = cpu.dsp,
+            fmodCpuStream = cpu.stream,
+            fmodCpuUpdate = cpu.update,
+            totalFmodCpu = cpu.dsp + cpu.stream + cpu.update,
+
+            voices = channelCount
         });
 
-        if (!hasSaved && timer >= duration)
+        // ----------------------------
+        // Finish & save
+        // ----------------------------
+        if (timer >= duration)
         {
-            hasSaved = true;
-            SaveJson();
-            Invoke(nameof(Quit), 1f);
+            SaveAndQuit();
         }
-
-        // Optional: debug every 10 samples
-        if (samples.Count % 10 == 0)
-            Debug.Log($"[Perf] Collected {samples.Count} samples");
-
-            
-    }
-    private void ReleaseTestEvent()
-    {
-        testInstance.release();
     }
 
-    private void ForceSave()
+    private void SaveAndQuit()
     {
-        if (samples.Count == 0)
-        {
-            Debug.LogWarning("[Perf] No samples collected, forcing save anyway.");
-        }
-        SaveJson();
-        Invoke(nameof(Quit), 0.5f);
-    }
+        hasSaved = true;
 
-    private void SaveJson()
-    {
-        string path = Path.Combine(Application.dataPath, outputFile);
-        Debug.Log("[Perf] Saving JSON to: " + path);
+        string path = Path.Combine(Application.persistentDataPath, outputFile);
+        Debug.Log($"[AudioProfiler] Saving results to: {path}");
 
         var wrapper = new AudioMetricsWrapper
         {
@@ -123,11 +111,8 @@ public class LogAudioMetrics : MonoBehaviour
         };
 
         File.WriteAllText(path, JsonUtility.ToJson(wrapper, true));
-        Debug.Log("[Perf] JSON saved successfully.");
-    }
+        Debug.Log("[AudioProfiler] JSON saved successfully.");
 
-    private void Quit()
-    {
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #else
