@@ -2,15 +2,17 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using FMODUnity;
-using FMOD;                // for CPU_USAGE and ChannelGroup
-using FMOD.Studio;         // for Bus
+using FMOD;
+using FMOD.Studio;
 using Debug = UnityEngine.Debug;
-using FmodDebug = FMOD.Debug;
 
 public class LogAudioMetrics : MonoBehaviour
 {
     [Header("Profiling Settings")]
-    public float duration = 1f;
+    [Tooltip("How long to record audio metrics (seconds).")]
+    public float duration = 10f;
+
+    [Tooltip("Profiler output file name.")]
     public string outputFile = "profiler_output.json";
 
     private float timer = 0f;
@@ -18,78 +20,90 @@ public class LogAudioMetrics : MonoBehaviour
 
     private readonly List<AudioFrameData> samples = new();
 
+    // ----------------------------
+    // Per-frame audio metrics
+    // ----------------------------
     private struct AudioFrameData
     {
         public float time;
         public float unityFrameMs;
+
         public float fmodCpuDsp;
         public float fmodCpuStream;
+        public float fmodCpuUpdate;
         public float totalFmodCpu;
+
         public int voices;
     }
 
-    private void Start()
+    // ----------------------------
+    // JSON wrapper
+    // ----------------------------
+    [System.Serializable]
+    private class AudioMetricsWrapper
     {
-        Debug.Log("[Perf] Audio metrics logging started.");
-        Debug.Log($"[Perf] Output file: {Path.Combine(Application.dataPath, outputFile)}");
-
-        // Safety force save in case Update() fails
-        Invoke(nameof(ForceSave), duration + 10f);
+        public string timestamp;
+        public int sampleCount;
+        public List<AudioFrameData> samples;
     }
 
     private void Update()
     {
+        if (hasSaved)
+            return;
+
         timer += Time.deltaTime;
-        float frameTimeMs = Time.deltaTime * 1000f;
 
-        // Get FMOD CPU usage
-        RuntimeManager.StudioSystem.getCPUUsage(out _, out var studio);
-        float dspCpu = GetFloatMember(studio, "dsp");
-        float streamCpu = GetFloatMember(studio, "stream");
+        // ----------------------------
+        // Unity frame timing
+        // ----------------------------
+        float frameMs = Time.deltaTime * 1000f;
 
-        // Get voice count
+        // ----------------------------
+        // FMOD CPU (low-level)
+        // ----------------------------
+        RuntimeManager.CoreSystem.getCPUUsage(out FMOD.CPU_USAGE cpu);
+
+        // ----------------------------
+        // Active voices (channels)
+        // ----------------------------
         RuntimeManager.StudioSystem.getBus("bus:/", out Bus masterBus);
-        masterBus.getChannelGroup(out var group);
-        group.getNumChannels(out var voiceCount);
+        masterBus.getChannelGroup(out ChannelGroup group);
+        group.getNumChannels(out int channelCount);
 
+        // ----------------------------
+        // Store sample
+        // ----------------------------
         samples.Add(new AudioFrameData
         {
             time = Time.time,
-            unityFrameMs = frameTimeMs,
-            fmodCpuDsp = dspCpu,
-            fmodCpuStream = streamCpu,
-            totalFmodCpu = dspCpu + streamCpu,
-            voices = voiceCount
+            unityFrameMs = frameMs,
+
+            fmodCpuDsp = cpu.dsp,
+            fmodCpuStream = cpu.stream,
+            fmodCpuUpdate = cpu.update,
+            totalFmodCpu = cpu.dsp + cpu.stream + cpu.update,
+
+            voices = channelCount
         });
 
-        if (!hasSaved && timer >= duration)
+        // ----------------------------
+        // Finish & save
+        // ----------------------------
+        if (timer >= duration)
         {
-            hasSaved = true;
-            SaveJson();
-            Invoke(nameof(Quit), 1f);
+            SaveAndQuit();
         }
-
-        // Optional: debug every 10 samples
-        if (samples.Count % 10 == 0)
-            Debug.Log($"[Perf] Collected {samples.Count} samples");
     }
 
-    private void ForceSave()
+    private void SaveAndQuit()
     {
-        if (samples.Count == 0)
-        {
-            Debug.LogWarning("[Perf] No samples collected, forcing save anyway.");
-        }
-        SaveJson();
-        Invoke(nameof(Quit), 0.5f);
-    }
+        hasSaved = true;
 
-    private void SaveJson()
-    {
-        string path = Path.Combine(Application.dataPath, outputFile);
-        Debug.Log("[Perf] Saving JSON to: " + path);
+        string path = Path.Combine(Application.persistentDataPath, outputFile);
+        Debug.Log($"[AudioProfiler] Saving results to: {path}");
 
-        var wrapper = new
+        var wrapper = new AudioMetricsWrapper
         {
             timestamp = System.DateTime.UtcNow.ToString("o"),
             sampleCount = samples.Count,
@@ -97,34 +111,8 @@ public class LogAudioMetrics : MonoBehaviour
         };
 
         File.WriteAllText(path, JsonUtility.ToJson(wrapper, true));
-        Debug.Log("[Perf] JSON saved successfully.");
-    }
+        Debug.Log("[AudioProfiler] JSON saved successfully.");
 
-    private float GetFloatMember(object obj, string name)
-    {
-        if (obj == null) return 0f;
-        var t = obj.GetType();
-        var prop = t.GetProperty(name);
-        if (prop != null)
-        {
-            var val = prop.GetValue(obj);
-            if (val is float f) return f;
-            if (val is double d) return (float)d;
-            if (val is int i) return i;
-        }
-        var field = t.GetField(name);
-        if (field != null)
-        {
-            var val = field.GetValue(obj);
-            if (val is float f2) return f2;
-            if (val is double d2) return (float)d2;
-            if (val is int i2) return i2;
-        }
-        return 0f;
-    }
-
-    private void Quit()
-    {
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #else
