@@ -8,16 +8,28 @@ on:
  push:
   branches:
     - main
-    - Fix-CI-workflow
-    
+
+concurrency:
+  group: audio-profiler
+  cancel-in-progress: true
+  
 jobs:
+# ============================================================
+# BUILD
+# ============================================================
   build:
     name: Build Unity Project
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6.0.1
+      uses: actions/checkout@v4
+      
+    - name: Cache Unity Library
+      uses: actions/cache@v4
+      with:
+          path: AudioProfiling/Library
+          key: Library-${{ runner.os }}-${{ hashFiles('AudioProfiling/Packages/manifest.json') }}
 
     - name: Unity Builder
       uses: game-ci/unity-builder@v4
@@ -32,11 +44,14 @@ jobs:
         buildName: AudioProfiling
 
     - name: Upload build
-      uses: actions/upload-artifact@v5.0.0
+      uses: actions/upload-artifact@v4
       with:
         name: Build-Executable
         path: build/StandaloneWindows64/
-
+        retention-days: 7
+# ============================================================
+# PROFILE
+# ============================================================
   profile:
     name: Run Build and Generate Profiler Logs
     needs: build
@@ -44,10 +59,10 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6.0.1
+      uses: actions/checkout@4
 
     - name: Download build from artifacts
-      uses: actions/download-artifact@v6.0.0
+      uses: actions/download-artifact@v4
       with:
         name: Build-Executable
         path: Build/
@@ -73,57 +88,76 @@ jobs:
         -NoNewWindow
 
     - name: Locate profiler output
-      shell: powershell
+      shell: bash
       run: |
-        Write-Host "Searching for profiler_output.json..."
-        $profilerOutput = Get-ChildItem Build -Recurse -Filter profiler_output.json | Select-Object -ExpandProperty FullName
-        if (-not $profilerOutput) {
-          Write-Error "profiler_output.json not found."
-          exit 1
-        }
-        Write-Host "Found profiler_output.json at: $profilerOutput"
+          set -euo pipefail
+
+          COMPANY="DefaultCompany"
+          PRODUCT="AudioProfiling"
+          FILE="profiler_output.json"
+
+          BASE="/c/Users/runneradmin/AppData/LocalLow"
+          PATH_JSON="$BASE/$COMPANY/$PRODUCT/$FILE"
+
+          echo "Looking for profiler output at:"
+          echo "$PATH_JSON"
+
+          if [ ! -f "$PATH_JSON" ]; then
+            echo "::error::profiler_output.json not found"
+            exit 1
+          fi
+
+          cp "$PATH_JSON" .
+          echo "Profiler output copied to workspace"
+
+          # sanity check
+          grep -q '"sampleCount"' "$FILE"
 
     - name: Upload profiler logs
-      uses: actions/upload-artifact@v5.0.0
+      uses: actions/upload-artifact@v4
       with:
         name: Profiler-Logs
         path: |
           Build/AudioProfiling_Data/profiler_output.json
           unity.log
+# ============================================================
+# ANALYZE
+# ============================================================
+    analyze:
+    name: Analyze Audio Performance
+    needs: profile
+    runs-on: ubuntu-latest
 
-  analyze:
-   name: Analyze Audio Performance
-   needs: profile
-   runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-   steps:
-   - name: Checkout repository
-     uses: actions/checkout@v6.0.1
+      - name: Download profiler logs
+        uses: actions/download-artifact@v4
+        with:
+          name: Profiler-Logs
+          path: .
 
-   - name: Download profiler logs
-     uses: actions/download-artifact@v6.0.0
-     with:
-       name: Profiler-Logs
-       path: .
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-   - name: Install Python
-     uses: actions/setup-python@v6.1.0
-     with:
-       python-version: '3.11'
+      - name: Run audio performance analysis
+        shell: bash
+        run: |
+          set -e
 
-   - name: Run performance analysis
-     shell: bash
-     run: |
-       set -e
-       if [ -f AudioProfiling/Assets/Tools/parse_audioprofiler.py ]; then
-        echo "Running audio profiler parser..."
-        python AudioProfiling/Assets/Tools/parse_audioprofiler.py --input Build/AudioProfiling_Data/profiler_output.json --output report.json
-       else
-        echo "No analysis tools found, skipping analysis"
-       fi
+          if [ ! -f profiler_output.json ]; then
+            echo "::error::profiler_output.json missing"
+            exit 1
+          fi
 
-   - name: Upload report
-     uses: actions/upload-artifact@v5.0.0
-     with:
-       name: Analysis-Report
-       path: report.json
+          python AudioProfiling/Assets/Tools/parse_audioprofiler.py profiler_output.json
+
+      - name: Upload analysis report
+        uses: actions/upload-artifact@v4
+        with:
+          name: Analysis-Report
+          path: profiler_output.json
+          retention-days: 7
