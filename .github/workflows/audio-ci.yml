@@ -14,6 +14,9 @@ env:
   BUILD_NAME: AudioProfiling
 
 jobs:
+# ============================================================
+# BUILD
+# ============================================================
   build:
     name: Build Unity Project
     runs-on: ubuntu-latest
@@ -21,7 +24,13 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6.0.1
+      uses: actions/checkout@v4
+      
+    - name: Cache Unity Library
+      uses: actions/cache@v4
+      with:
+          path: AudioProfiling/Library
+          key: Library-${{ runner.os }}-${{ hashFiles('AudioProfiling/Packages/manifest.json') }}
 
     - name: Unity Builder
       uses: game-ci/unity-builder@v4
@@ -36,7 +45,7 @@ jobs:
         buildName: ${{ env.BUILD_NAME }}
 
     - name: Upload build
-      uses: actions/upload-artifact@v5.0.0
+      uses: actions/upload-artifact@v4
       with:
         name: Build-Executable
         path: build/StandaloneWindows64/
@@ -101,7 +110,7 @@ jobs:
         Write-Host "Unity process completed successfully"
 
     - name: Locate profiler output
-      shell: powershell
+      shell: bash
       run: |
         Write-Host "Searching for profiler_output.json..."
         
@@ -155,9 +164,11 @@ jobs:
    runs-on: ubuntu-latest
    timeout-minutes: 10
 
-   steps:
-   - name: Checkout repository
-     uses: actions/checkout@v6.0.1
+      - name: Download profiler logs
+        uses: actions/download-artifact@v4
+        with:
+          name: Profiler-Logs
+          path: .
 
    - name: Download profiler logs
      uses: actions/download-artifact@v7.0.0
