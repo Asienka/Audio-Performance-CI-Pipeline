@@ -23,14 +23,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v6.0.1
 
-    - name: Cache Unity Library
-      uses: actions/cache@v3
-      with:
-        path: AudioProfiling/Library
-        key: Library-${{ env.UNITY_VERSION }}-${{ hashFiles('AudioProfiling/Assets/**', 'AudioProfiling/Packages/**', 'AudioProfiling/ProjectSettings/**') }}
-        restore-keys: |
-          Library-${{ env.UNITY_VERSION }}-
-
     - name: Unity Builder
       uses: game-ci/unity-builder@v4
       env:
