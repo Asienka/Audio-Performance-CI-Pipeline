@@ -2,37 +2,24 @@
   "fmod": {
     "cpu": {
       "dsp": {
-        "max": 20.0,
-        "avg": 10.0,
-        "description": "DSP processing CPU usage percentage"
+        "max": 15.0
       },
       "stream": {
-        "max": 5.0,
-        "avg": 2.0,
-        "description": "Audio streaming CPU usage percentage"
-      },
-      "update": {
-        "max": 2.0,
-        "avg": 1.0,
-        "description": "FMOD update CPU usage percentage"
+        "avg": 10.0
       },
       "total": {
-        "max": 25.0,
-        "avg": 15.0,
-        "description": "Total FMOD CPU usage percentage"
+        "max": 20.0
       }
     },
     "voices": {
-      "max": 64,
-      "avg": 32,
-      "description": "Number of active audio voices (real + virtual channels)"
+      "avg": 128,
+      "max": 256
     }
   },
   "unity": {
     "frame_ms": {
-      "max": 33.0,
-      "avg": 16.6,
-      "description": "Unity frame time in milliseconds (33ms = 30fps, 16.6ms = 60fps)"
+      "avg": 25.0,
+      "max": 40.0
     }
   }
 }
