@@ -75,11 +75,10 @@ jobs:
     - name: Locate profiler output (persistentDataPath)
       shell: powershell
       run: |
-        $persistentPath = "$env:LOCALAPPDATA\Low"
-        Write-Host "Searching in persistentDataPath: $persistentPath"
-
+        
+        Write-Host "Searching for profiler_output.json inside Build directory..." 
         $profilerOutput = Get-ChildItem `
-          -Path $persistentPath `
+          -Path Build `
           -Recurse `
           -Filter profiler_output.json `
         -ErrorAction SilentlyContinue |
