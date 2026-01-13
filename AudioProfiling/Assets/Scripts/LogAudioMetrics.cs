@@ -8,8 +8,8 @@ using FMOD.Studio;
 using Debug = UnityEngine.Debug;
 
 /// <summary>
-/// Collects per-frame Unity + FMOD audio performance metrics
-/// and writes them to a JSON file for CI analysis.
+/// Collects per-frame audio performance metrics from FMOD and Unity
+/// and saves them as JSON for CI analysis.
 /// Designed to work in headless / CI environments.
 /// </summary>
 public class LogAudioMetrics : MonoBehaviour
@@ -27,9 +27,9 @@ public class LogAudioMetrics : MonoBehaviour
 
     private readonly List<AudioFrameData> samples = new();
 
-    // -------------------------------------------------
-    // Per-frame audio metrics
-    // -------------------------------------------------
+    // --------------------------------------------------
+    // Per-frame metrics
+    // --------------------------------------------------
     [System.Serializable]
     private struct AudioFrameData
     {
@@ -44,9 +44,9 @@ public class LogAudioMetrics : MonoBehaviour
         public int voices;
     }
 
-    // -------------------------------------------------
+    // --------------------------------------------------
     // JSON wrapper
-    // -------------------------------------------------
+    // --------------------------------------------------
     [System.Serializable]
     private class AudioMetricsWrapper
     {
@@ -57,62 +57,56 @@ public class LogAudioMetrics : MonoBehaviour
 
     private void Awake()
     {
-        Debug.Log("[AudioProfiler] Initializing audio profiler...");
+        Debug.Log("[AudioProfiler] Starting FMOD initialization...");
         Debug.Log($"[AudioProfiler] Platform: {Application.platform}");
-        Debug.Log($"[AudioProfiler] Headless mode: {SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null}");
+        Debug.Log($"[AudioProfiler] Headless: {SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null}");
 
-        // FMOD may not initialize automatically in headless mode
         StartCoroutine(InitializeFMOD());
     }
 
     /// <summary>
-    /// Ensures FMOD RuntimeManager is initialized in headless environments.
+    /// Ensures FMOD is initialized correctly in headless / CI environments.
     /// </summary>
     private IEnumerator InitializeFMOD()
     {
-        // Wait one frame for RuntimeManager auto-init
+        // Wait one frame for automatic RuntimeManager initialization
         yield return null;
 
         if (!RuntimeManager.IsInitialized)
         {
-            Debug.LogWarning("[AudioProfiler] FMOD not initialized automatically. Forcing initialization...");
+            Debug.LogWarning("[AudioProfiler] RuntimeManager not initialized automatically. Forcing CoreSystem access...");
 
             try
             {
-                // Accessing CoreSystem forces FMOD initialization
                 RuntimeManager.CoreSystem.getVersion(out uint version);
                 Debug.Log($"[AudioProfiler] FMOD Core version: {version:X}");
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"[AudioProfiler] FMOD init failed: {e}");
+                Debug.LogError($"[AudioProfiler] CoreSystem access failed: {e}");
             }
-
-            yield return null;
         }
 
-        // Final fallback: force NOSOUND output (CI-safe)
+        // Wait another frame AFTER try/catch
+        yield return null;
+
         if (!RuntimeManager.IsInitialized)
         {
-            Debug.LogWarning("[AudioProfiler] Attempting NOSOUND fallback...");
-
-            bool nosoundSet = false;
+            Debug.LogWarning("[AudioProfiler] Attempting NOSOUND output fallback...");
 
             try
             {
                 FMOD.RESULT result = RuntimeManager.CoreSystem.setOutput(FMOD.OUTPUTTYPE.NOSOUND);
                 Debug.Log($"[AudioProfiler] setOutput(NOSOUND): {result}");
-                nosoundSet = (result == FMOD.RESULT.OK);
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"[AudioProfiler] Failed to set NOSOUND output: {e}");
+                Debug.LogError($"[AudioProfiler] NOSOUND fallback failed: {e}");
             }
-
-            // yield MUST be outside try/catch
-            if (nosoundSet)
-                yield return null;
         }
+
+        // Final wait AFTER try/catch
+        yield return null;
 
         if (!RuntimeManager.IsInitialized)
         {
@@ -128,10 +122,9 @@ public class LogAudioMetrics : MonoBehaviour
             yield break;
         }
 
-        // FMOD initialized successfully
         Debug.Log("[AudioProfiler] FMOD initialized successfully.");
 
-        // Ensure StudioListener exists (required for voice updates)
+        // Ensure StudioListener exists
         if (FindFirstObjectByType<StudioListener>() == null)
         {
             gameObject.AddComponent<StudioListener>();
@@ -177,21 +170,21 @@ public class LogAudioMetrics : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Writes profiler results next to the executable and quits.
-    /// </summary>
     private void SaveAndQuit()
     {
+        if (hasSaved)
+            return;
+
         hasSaved = true;
 
         Debug.Log($"[AudioProfiler] Collected {samples.Count} samples.");
 
-        // Save next to executable (CI-friendly)
+        // Save next to the executable (easy to collect in CI)
         string outputDir = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
         Directory.CreateDirectory(outputDir);
 
         string path = Path.Combine(outputDir, outputFile);
-        Debug.Log($"[AudioProfiler] Saving JSON to: {path}");
+        Debug.Log($"[AudioProfiler] Saving results to: {path}");
 
         var wrapper = new AudioMetricsWrapper
         {
@@ -218,7 +211,7 @@ public class LogAudioMetrics : MonoBehaviour
     }
 
     /// <summary>
-    /// Writes an empty profiler file to avoid CI pipeline failure.
+    /// Writes an empty JSON file so CI does not fail on missing artifacts.
     /// </summary>
     private void SaveEmptyResults(string reason)
     {
@@ -251,7 +244,7 @@ public class LogAudioMetrics : MonoBehaviour
     {
         if (!hasSaved && samples.Count > 0)
         {
-            Debug.LogWarning("[AudioProfiler] Force-saving on application quit.");
+            Debug.LogWarning("[AudioProfiler] Force-saving samples on quit.");
             SaveAndQuit();
         }
     }
