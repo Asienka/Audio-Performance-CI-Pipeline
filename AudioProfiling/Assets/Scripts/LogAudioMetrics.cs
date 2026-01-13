@@ -100,8 +100,14 @@ public class LogAudioMetrics : MonoBehaviour
     {
         hasSaved = true;
 
-        string path = Path.Combine(Application.persistentDataPath, outputFile);
-        Debug.Log($"[AudioProfiler] Saving results to: {path}");
+        string dir = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+        Directory.CreateDirectory(dir); 
+
+        string path = Path.Combine(dir, outputFile);
+
+        Debug.Log("[AudioProfiler] Saving results to: " + path);
+        Debug.Log("[AudioProfiler] Sample count: " + samples.Count);
+        Debug.Log("[AudioProfiler] persistentDataPath = " + Application.persistentDataPath);
 
         var wrapper = new AudioMetricsWrapper
         {
@@ -110,8 +116,15 @@ public class LogAudioMetrics : MonoBehaviour
             samples = samples
         };
 
-        File.WriteAllText(path, JsonUtility.ToJson(wrapper, true));
-        Debug.Log("[AudioProfiler] JSON saved successfully.");
+        try
+        {
+            File.WriteAllText(path, JsonUtility.ToJson(wrapper, true));
+            Debug.Log("[AudioProfiler] JSON saved successfully.");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError("[AudioProfiler] Failed to save JSON: " + ex);
+        }
 
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
