@@ -46,6 +46,30 @@ public class LogAudioMetrics : MonoBehaviour
         public int sampleCount;
         public List<AudioFrameData> samples;
     }
+    
+private void Awake()
+    {
+        // StudioListener check
+        if (FindFirstObjectByType<StudioListener>() == null)
+        {
+            gameObject.AddComponent<StudioListener>();
+            Debug.Log("[AudioProfiler] Added StudioListener to scene");
+        }
+        
+        // FMOD initialization check
+        if (!RuntimeManager.IsInitialized)
+        {
+            Debug.LogError("[AudioProfiler] FMOD is NOT initialized!");
+        }
+        else
+        {
+            Debug.Log("[AudioProfiler] FMOD initialized successfully");
+        }
+        
+        Debug.Log("[AudioProfiler] Application data path: " + Application.dataPath);
+    }
+
+
 
     private void Update()
     {
