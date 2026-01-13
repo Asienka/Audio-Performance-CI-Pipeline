@@ -17,13 +17,10 @@ public class LogAudioMetrics : MonoBehaviour
 
     private float timer = 0f;
     private bool hasSaved = false;
-    
+    private bool isProfilingStarted = false;
 
     private readonly List<AudioFrameData> samples = new();
 
-    // ----------------------------
-    // Per-frame audio metrics
-    // ----------------------------
     [System.Serializable]
     private struct AudioFrameData
     {
@@ -38,9 +35,6 @@ public class LogAudioMetrics : MonoBehaviour
         public int voices;
     }
 
-    // ----------------------------
-    // JSON wrapper
-    // ----------------------------
     [System.Serializable]
     private class AudioMetricsWrapper
     {
@@ -48,9 +42,10 @@ public class LogAudioMetrics : MonoBehaviour
         public int sampleCount;
         public List<AudioFrameData> samples;
     }
-    
-private void Awake()
-    Debug.Log("[AudioProfiler] Starting initialization...");
+
+    private void Awake()
+    {
+        Debug.Log("[AudioProfiler] Starting initialization...");
         Debug.Log($"[AudioProfiler] Application platform: {Application.platform}");
         Debug.Log($"[AudioProfiler] Is headless: {SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null}");
         
@@ -151,7 +146,6 @@ private void Awake()
         }
     }
 
-
     private void Update()
     {
         if (hasSaved || !isProfilingStarted)
@@ -164,26 +158,14 @@ private void Awake()
             Debug.Log($"[AudioProfiler] Starting profiling for {duration}s");
         }
 
-        // ----------------------------
-        // Unity frame timing
-        // ----------------------------
         float frameMs = Time.deltaTime * 1000f;
 
-        // ----------------------------
-        // FMOD CPU (low-level)
-        // ----------------------------
         RuntimeManager.CoreSystem.getCPUUsage(out FMOD.CPU_USAGE cpu);
 
-        // ----------------------------
-        // Active voices (channels)
-        // ----------------------------
         RuntimeManager.StudioSystem.getBus("bus:/", out Bus masterBus);
         masterBus.getChannelGroup(out ChannelGroup group);
         group.getNumChannels(out int channelCount);
 
-        // ----------------------------
-        // Store sample
-        // ----------------------------
         samples.Add(new AudioFrameData
         {
             time = Time.time,
@@ -197,9 +179,6 @@ private void Awake()
             voices = channelCount
         });
 
-        // ----------------------------
-        // Finish & save
-        // ----------------------------
         if (timer >= duration)
         {
             SaveAndQuit();
@@ -218,8 +197,6 @@ private void Awake()
         string path = Path.Combine(dir, outputFile);
 
         Debug.Log("[AudioProfiler] Saving results to: " + path);
-        Debug.Log("[AudioProfiler] Sample count: " + samples.Count);
-        Debug.Log("[AudioProfiler] persistentDataPath = " + Application.persistentDataPath);
 
         var wrapper = new AudioMetricsWrapper
         {
@@ -230,7 +207,8 @@ private void Awake()
 
         try
         {
-            File.WriteAllText(path, JsonUtility.ToJson(wrapper, true));
+            string json = JsonUtility.ToJson(wrapper, true);
+            File.WriteAllText(path, json);
             Debug.Log("[AudioProfiler] JSON saved successfully.");
         }
         catch (System.Exception ex)
@@ -244,7 +222,8 @@ private void Awake()
         Application.Quit();
 #endif
     }
-private void SaveEmptyResults(string errorMessage)
+
+    private void SaveEmptyResults(string errorMessage)
     {
         hasSaved = true;
 
@@ -280,4 +259,4 @@ private void SaveEmptyResults(string errorMessage)
             SaveAndQuit();
         }
     }
-
+}
