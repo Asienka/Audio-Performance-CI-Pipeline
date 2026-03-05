@@ -4,12 +4,14 @@ Automated CI pipeline designed to validate runtime audio performance in a Unity 
 The pipeline builds the project in headless mode, runs automated performance tests, and analyzes collected metrics to detect performance regressions.
 
 ============================
+
 Project Goal
 
 In game development, performance testing is often manual and time-consuming.
 The goal of this project was to create a reproducible automated workflow that validates runtime performance and detects regressions early during development.
 
 ============================
+
 Pipeline Overview
 
 The CI pipeline performs the following steps:
@@ -23,6 +25,7 @@ The CI pipeline performs the following steps:
 The pipeline is implemented using GitHub Actions and runs automatically on repository updates.
 
 ============================
+
 Technologies
 
 GitHub Actions
@@ -37,6 +40,7 @@ reproducible CI testing workflow
 debugging of middleware initialization in CI environment
 
 =======================
+
 Example Metrics Output
 
 Performance metrics are exported in structured JSON format and analyzed during CI execution.
@@ -51,9 +55,4 @@ Example:
 }
 
 ===========================
-What I Learned
 
-designing automated validation pipelines
-working with CI environments and headless builds
-collecting and analyzing runtime metrics
-debugging middleware initialization in CI
