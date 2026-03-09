@@ -25,6 +25,23 @@ The CI pipeline performs the following steps:
 The pipeline is implemented using GitHub Actions and runs automatically on repository updates.
 
 ============================
+### Pipeline Architecture
+
+Developer Push
+      ↓
+GitHub Actions Workflow
+      ↓
+Headless Unity Build
+      ↓
+Automated Runtime Test Execution
+      ↓
+JSON Metrics Collection
+      ↓
+Threshold-Based Validation
+      ↓
+CI Result (Pass / Fail)
+
+============================
 
 Technologies
 
