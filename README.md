@@ -11,7 +11,7 @@
 [![GitHub Actions](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?logo=github-actions)]()
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)]()
 
-**TL;DR** — Push to `main` or open a PR. GitHub Actions builds the Unity project headless, runs an audio stress test, collects per-frame FMOD + Unity metrics, parses them in Python, and fails the build if anything crosses the defined thresholds. No manual profiling. No "wydaje mi się wolniejsze". Numbers or it didn't happen.
+**TL;DR** — Push to `main` or open a PR. GitHub Actions builds the Unity project headless, runs an audio stress test, collects per-frame FMOD + Unity metrics, parses them in Python, and fails the build if anything crosses the defined thresholds. No manual profiling. No "I think it is slower". Numbers or it didn't happen.
 
 </div>
 
@@ -21,7 +21,7 @@
 
 A CI pipeline that catches performance regressions in Unity games **before** they ship. Built originally for audio profiling (FMOD + Unity integration), but the pattern generalizes to any per-frame metrics you want to gate.
 
-In game development, performance testing is usually manual. Someone plays the build, says "wydaje mi się wolniejsze", dev opens Profiler, compares to last week. That's slow, subjective, and happens after the damage is done.
+In game development, performance testing is usually manual. Someone plays the build, says "I think it is slower", dev opens Profiler, compares to last week. That's slow, subjective, and happens after the damage is done.
 
 This pipeline does it automated, on every PR, with hard thresholds. Frame time goes from 16ms to 22ms? Build fails. FMOD DSP CPU spikes from 8% to 25%? Build fails. Voices average over 128? Build fails. Numbers don't lie.
 
